@@ -6,7 +6,7 @@ In "Part 1: Exploratory data analysis", we find the basic facts of how people us
 
 In "Part 2: Subscribers and customers", we focus on the differece between subscribers (with annual passes) and customers (with daily or weekly passes). We build random forest, RuleFit, and boosted decision tree models to predict a certain behavior (location and time of ride) belongs to a subscriber or customer. We suggest how to expand the subscriber base and how to attract more short-term users
 
-In "Part 3: Availabilities of bikes and parking spaces", we investigate the issues of insufficient available bikes and insufficient parking spaces in some stations at certain time. The manual relocation (shipping by trucks) of the bikes is identified, and its adjustment is suggested.
+In "Part 3: Availabilities of bikes and parking spaces", we investigate the issues of insufficient available bikes and insufficient parking spaces. The manual relocation (shipping by trucks) of the bikes is identified, and its adjustment is suggested.
 
 -----
 
