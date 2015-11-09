@@ -7,59 +7,34 @@ output: pdf_document
 
 Abstract: We study how riders used the CitiBike bike rental system in New York City in July 2014. In Part 1: Exploratory data analysis, we find the basic facts of how people used this system. The data is visually explored and summarized with basic time and location information. This analysis provides an intuitive understanding of the details in Part 2 and Part 3. Possible extension of this work is also discussed.
 
-# 1. Creating tables
+# 1. Data structure and basic system profile
 
-First we load the csv file into R as the initial dataset 'dat0'. The dataset records all CitiBike rides in July 2014. Its column names are renamed for simplicity.
+First we load the csv file into R as the master dataset 'citibike'. The dataset records all CitiBike rides in July 2014. Its column names are renamed for simplicity.
 
 ```{r}
 set.seed(123456)
 library(dplyr) # in the whole project we use dplyr package to manipulate datasets.
-dat0 = read.csv('citibike_2014-07.csv', header = T)
-colnames(dat0) = c("dur", "ti", "tf",
-                   "si", "namei", "lati", "loni",
-                   "sf", "namef", "latf", "lonf",
-                   "bike", "type", "birth", "sex")
-str(dat0)
+citibike = read.csv('citibike_2014-07.csv', header = T)
+colnames(citibike) = c("dur", "ti", "tf",
+                       "si", "namei", "lati", "loni",
+                       "sf", "namef", "latf", "lonf",
+                       "bike", "type", "birth", "sex")
+str(citibike)
 ```
 
 Each observation (row) is a ride, with start time/location and end time/location, bike id, user type (subscriber or customer), and if a subscriber, the gender and birthyear. From the CitiBike website, we know that the "subscribers" paid annual fees and the "customers" rented bikes from 24 hours to 7 days each time. It is most likely that subscribers were daily commuters and the customers were tourist or visitors. In such a case it will be very interesting to differentiate the behaviours of these two groups, since NYC residents and short-term visitors represent very different business opportunities. The number of rides by subscribers and by customers are:
 
 ```{r}
-table(dat0$type)
+table(citibike$type)
 ```
 
 About 12% of the rides were by customers. We checked the data in winter (January 2014) and found that the percentage of customers was very low (about 2.5%) and it would be harder to provide reliable information for customer behaviours. It is for this reason we analyze the July data in this work. The winter data could be interesting as well and can be studied in the future.
 
-Now we further organize the data. The 'master' dataset and the 'station' dataset together hold the collection of all important but not redundant information. In 'master', the time information is only saved in unix time format, and the location information is only in station ids. 'Station' is a lookup table for stations, where we can find the name and geographical location of each station. These two tables and 'dat0' are the only tables preserved through out the project, which can generate any tables for specific purposes.
-
-```{r}
-master = dat0
-master = master %>%
-  select(
-    ti, tf, # time info
-    si, sf, # location info: latitude & longitude
-    bike, # bike id
-    type, birth, sex) # user info
-# "Subscriber" & "Customer" changed to 1 and -1:
-master$type = as.integer(ifelse(master$type == "Subscriber", 1, -1)) 
-# set birthyear = 0 for unknown customers:
-master$birth = as.integer(ifelse(master$birth == '\\N', '0', as.character(master$birth))) 
-stations = dat0 %>% select(si, namei, lati, loni)
-stations = stations %>%
-  group_by(id = si) %>%
-  summarise(
-    name = namei[1],
-    lat = lati[1],
-    lon = loni[1])
-stations = data.frame(stations)
-stations = stations %>% arrange(id)
-```
-
 A few basic fact of the system can be easily drawn:
 
 ```{r}
-n_bikes = n_distinct(master$bike) # total number of bikes
-n_sta = n_distinct(stations$id) # total number of stations
+n_bikes = n_distinct(citibike$bike) # total number of bikes
+n_sta = n_distinct(citibike$si) # total number of stations
 print(c(n_bikes, n_sta))
 ```
 
@@ -78,10 +53,10 @@ The temporal distribution of starting biking is
 
 ```{r, echo = F}
 # time is defined by H + M/60 where H is the hour and M is the minute
-tmp = data.frame(hi = round(as.integer(strftime(master$ti, format = "%H")) +
-                            as.integer(strftime(master$ti, format = "%M")) / 60, 2),
-                 di = as.integer(strftime(master$ti, format = "%u")))
-tmp = sample_n(tmp, 5000)
+tmp = data.frame(hi = round(as.integer(strftime(citibike$ti, format = "%H")) +
+                            as.integer(strftime(citibike$ti, format = "%M")) / 60, 2),
+                 di = as.integer(strftime(citibike$ti, format = "%u")))
+tmp = tmp %>% sample_n(5000)
 fig = ggplot() +
   stat_density2d(data = tmp, aes(x = di, y = hi, fill = ..level..), geom = 'polygon') +
   geom_density2d(data = tmp, aes(x = di, y = hi), size = 0.3) +
@@ -94,9 +69,9 @@ print(fig)
 Similarly, the end time is plotted in the following figure:
 
 ```{r, echo = F}
-tmp = data.frame(hf = round(as.integer(strftime(master$tf, format = "%H")) +
-                            as.integer(strftime(master$tf, format = "%M")) / 60, 2),
-                 df = as.integer(strftime(master$tf, format = "%u")))
+tmp = data.frame(hf = round(as.integer(strftime(citibike$tf, format = "%H")) +
+                            as.integer(strftime(citibike$tf, format = "%M")) / 60, 2),
+                 df = as.integer(strftime(citibike$tf, format = "%u")))
 tmp = tmp %>% sample_n(5000)
 fig = ggplot() +
   stat_density2d(data = tmp, aes(x = df, y = hf, fill = ..level..), geom = 'polygon') +
@@ -109,17 +84,27 @@ print(fig)
 
 From Fig.1 and Fig.2, it is easy to see that most people rode on weekdays starting roughly around 8 am and 18 pm, and ending just slightly later than the start time. This is in line with the time most people go to work and return from work. Since we assume that NYC commuters were the majority of the riders, this result is not surprising. It is also worth pointing out that people rode bicycles on Saturday and Sunday from early afternoon to evening.
 
-Now we create the density plots for the start and end locations. A google map with matching range is called by ggmap as the background of the figures.
+Now we create the density plots for the start and end locations. A .
+
+```{r}
+# list of stations with locations which can help their labelling on the map
+stations = citibike %>%
+  group_by(id = si) %>%
+  summarise(name = namei[1],
+            lat = lati[1],
+            lon = loni[1]) %>%
+  arrange(id)
+head(stations)
+```
 
 ```{r, echo = F}
+# google map with matching range is called by ggmap as the background of the figures
 limlon = c(-74.02,-73.97)
 limlat = c(40.705,40.745)
 nycmap = get_map(location = c(lon = mean(limlon), lat = mean(limlat)),
                  zoom = 13, maptype = "hybrid", source = "google")
-```
-
-```{r, echo = F}
-tmp = left_join(master, stations, by = c('si' = 'id')) %>% select(lat, lon) %>% sample_n(5000)
+# 2d density
+tmp = citibike %>% select(lat = lati, lon = loni) %>% sample_n(5000)
 fig = ggmap(nycmap, extent = "device") +
   stat_density2d(data = tmp, aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
 	size = 0.01, bins = 16, geom = "polygon") +
@@ -132,7 +117,7 @@ print(fig)
 ```
 
 ```{r, echo = F}
-tmp = left_join(master, stations, by = c('sf' = 'id')) %>% select(lat, lon) %>% sample_n(5000)
+tmp = citibike %>% select(lat = latf, lon = lonf) %>% sample_n(5000)
 fig = ggmap(nycmap, extent = "device") +
   stat_density2d(data = tmp, aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
 	size = 0.01, bins = 16, geom = "polygon") +
@@ -155,13 +140,13 @@ As mentioned earlier, when borrowing and returning bikes in certain stations wer
 First of all we create a table to record the riding info for each bike:
 
 ```{r}
-rides = data.frame(bike = dat0$bike,
-                   ti = as.integer(as.POSIXct(master$ti)),
-                   date = as.integer(strftime(master$ti, format = "%d")),
-                   wday = as.integer(strftime(master$ti, format = "%u")),
-                   dur = dat0$dur / 60, # in minutes
-                   si = dat0$si, 
-                   sf = dat0$sf) %>%
+rides = data.frame(bike = citibike$bike,
+                   ti = as.integer(as.POSIXct(citibike$ti)),
+                   date = as.integer(strftime(citibike$ti, format = "%d")),
+                   wday = as.integer(strftime(citibike$ti, format = "%u")),
+                   dur = citibike$dur / 60, # in minutes
+                   si = citibike$si, 
+                   sf = citibike$sf) %>%
   arrange(bike, ti)
 head(rides)
 ```
