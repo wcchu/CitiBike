@@ -1,4 +1,4 @@
-suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("dplyr"))
 
 d <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
 
