@@ -22,7 +22,9 @@ d <-
          hour,
          usertype,
          byear = birth.year,
-         gender)
+         gender) %>%
+  mutate(usertype = as.factor(usertype),
+         gender = as.factor(gender))
 ## Now this dataset has 5 predictor features: lat, lon, month, day, and hour.
 ## The responses usertype, b_year, and gender will be predicted independently from
 ## the 5 features.
@@ -43,7 +45,8 @@ split_train_test <- function(d, t = 0.2) {
   )
 }
 
-## 1. predict the usertype
+
+## 1. predict the usertype (classification)
 
 ## sample subscribers to the same amount of customers to balance the data
 d_customers <- d[d$usertype == "Customer", ]
@@ -67,6 +70,33 @@ rf_usertype <-
     xtest = d_usertype_s$test[, colnames_feat],
     ytest = as.factor(d_usertype_s$test[, "usertype"])
   )
+print(rf_usertype) ## error rate ~ 31%
+
+
+## (2) tensorflow
+
+usertype_classifier <-
+  linear_classifier(
+    feature_columns = feature_columns(
+      column_numeric("lat", "lon", "month", "wday", "hour"))
+  )
+
+train_and_evaluate(
+  usertype_classifier,
+  input_fn(usertype ~ lat + lon + month + wday + hour,
+           data = d_usertype_s$train,
+           batch_size = 32,
+           epochs = 3))
+
+predictions <-
+  predict(
+    usertype_classifier,
+    input_fn = input_fn(usertype ~ lat + lon + month + wday + hour,
+                        data = d_usertype_s$test,
+                        batch_size = 32,
+                        epochs = 1),
+    predict_keys = "logistic")
+
 
 ## 2. predict the gender
 
