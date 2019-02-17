@@ -99,14 +99,17 @@ lin_cl <- linear_classifier(feature_columns = feat_cols)
 
 train(lin_cl, input_fn = input(u$train))
 
-lin_cl_pred <- predict(lin_cl, input_fn = input(u$test))
 lin_cl_eval <- evaluate(lin_cl, input_fn = input(u$test))
 print(lin_cl_eval) ## average loss ~ 69%
 
 
 ## (3) tensorflow dnn classifier
 
-#dnn_cl <- dnn_classifier(
-#  hidden_units = length(feat_cols),
-#  feature_columns = feat_cols)
+dnn_cl <- dnn_classifier(
+  hidden_units = c(5, 5, 5),
+  feature_columns = feat_cols)
 
+train(dnn_cl, input_fn = input(u$train))
+
+dnn_cl_eval <- evaluate(dnn_cl, input_fn = input(u$test))
+print(dnn_cl_eval) ## average loss ~ 69%
