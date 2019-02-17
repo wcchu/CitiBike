@@ -4,8 +4,8 @@ suppressPackageStartupMessages(library(tfestimators))
 
 raw <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
 
-## Task: predict the user (Subscriber/customer, birth year, gender) and the trip
-## (duration, top time, end station) for a given starting station at a given time.
+## Task: predict the usertype (Subscriber/customer classification) and
+## the trip duration (regression) for a given starting station at a given time.
 
 ## preprocess data
 d <-
@@ -20,11 +20,8 @@ d <-
          month,
          wday,
          hour,
-         usertype,
-         byear = birth.year,
-         gender) %>%
-  mutate(usertype = as.factor(usertype),
-         gender = as.factor(gender))
+         usertype) %>%
+  mutate(usertype = as.factor(usertype))
 ## Now this dataset has 5 predictor features: lat, lon, month, day, and hour.
 ## The responses usertype, b_year, and gender will be predicted independently from
 ## the 5 features.
@@ -66,55 +63,50 @@ sampler <- function(d, m = 10000) {
 ## sample subscribers to the same amount of customers to balance the data
 d_customers <- d[d$usertype == "Customer", ]
 d_subscribers <- d[d$usertype == "Subscriber", ]
-d_usertype <-
+u <-
   rbind(
+    ## reduce either d_customers or d_subscribers so their sizes are the same
     d_customers %>% sampler(m = nrow(d_subscribers)),
     d_subscribers %>% sampler(m = nrow(d_customers))
   ) %>%
   mutate(usertype = ifelse(usertype == "Subscriber", 1, 0)) %>%
-  sampler(m = 100000) ## reduce data size for development
-
-## split training and test sets with 80%-20%
-d_usertype_s <- splitter(d_usertype)
+  ## reduce data size for development
+  sampler(m = 100000) %>%
+  ## split training and test sets with 80%-20%
+  splitter(t = 0.2)
 
 ## (1) random forest
-rf_usertype <-
+rf <-
   randomForest(
-    x = d_usertype_s$train[, feat_names],
-    y = as.factor(d_usertype_s$train[, "usertype"]),
-    xtest = d_usertype_s$test[, feat_names],
-    ytest = as.factor(d_usertype_s$test[, "usertype"])
+    x = u$train[, feat_names],
+    y = as.factor(u$train[, "usertype"]),
+    xtest = u$test[, feat_names],
+    ytest = as.factor(u$test[, "usertype"])
   )
-print(rf_usertype) ## error rate ~ 31%
+print(rf) ## error rate ~ 32%
 
 
 ## (2) tensorflow linear classifier
 
-usertype_input_fn <- function(d) {
+input <- function(d) {
   input_fn(usertype ~ lat + lon + month + wday + hour,
            data = d,
            batch_size = 100,
            epochs = 3)
 }
 
-usertype_classifier <- linear_classifier(feature_columns = feat_cols)
+lin_cl <- linear_classifier(feature_columns = feat_cols)
 
-train(usertype_classifier,
-      input_fn = usertype_input_fn(d_usertype_s$train))
+train(lin_cl, input_fn = input(u$train))
 
-predictions <- predict(usertype_classifier,
-                       input_fn = usertype_input_fn(d_usertype_s$test))
-evaluation <- evaluate(usertype_classifier,
-                       input_fn = usertype_input_fn(d_usertype_s$test))
-print(evaluation)
-
-## 2. predict the gender
-
-## filter out users with missing gender
-#d_gender <- d %>% filter(gender %in% c(1, 2))
+lin_cl_pred <- predict(lin_cl, input_fn = input(u$test))
+lin_cl_eval <- evaluate(lin_cl, input_fn = input(u$test))
+print(lin_cl_eval) ## average loss ~ 69%
 
 
-## 3. predict the birth year
+## (3) tensorflow dnn classifier
 
-## filterout users with missing birth year
-#d_byear <- d %>% filter(byear != "\\N") %>% mutate(byear = as.integer(byear))
+#dnn_cl <- dnn_classifier(
+#  hidden_units = length(feat_cols),
+#  feature_columns = feat_cols)
+
