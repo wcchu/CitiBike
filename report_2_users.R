@@ -68,13 +68,11 @@ d_customers <- d[d$usertype == "Customer", ]
 d_subscribers <- d[d$usertype == "Subscriber", ]
 d_usertype <-
   rbind(
-    d_customers,
-    d_subscribers[sample(x = nrow(d_subscribers),
-                         size = nrow(d_customers),
-                         replace = F), ]
+    d_customers %>% sampler(m = nrow(d_subscribers)),
+    d_subscribers %>% sampler(m = nrow(d_customers))
   ) %>%
   mutate(usertype = ifelse(usertype == "Subscriber", 1, 0)) %>%
-  sampler(m = 50000) ## reduce data size for development
+  sampler(m = 100000) ## reduce data size for development
 
 ## split training and test sets with 80%-20%
 d_usertype_s <- splitter(d_usertype)
@@ -108,6 +106,7 @@ predictions <- predict(usertype_classifier,
                        input_fn = usertype_input_fn(d_usertype_s$test))
 evaluation <- evaluate(usertype_classifier,
                        input_fn = usertype_input_fn(d_usertype_s$test))
+print(evaluation)
 
 ## 2. predict the gender
 
