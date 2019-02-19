@@ -118,7 +118,7 @@ print(dnn_cl_eval) ## average loss ~ 69%
 
 ## 2. predict the trip duration (regression)
 
-## tree regression
+## (1) tree regression
 
 tree_rg <- tree(
   formula = trip_dur ~ lat + lon + wday + hour,
@@ -132,7 +132,7 @@ tree_rg_pred <- predict(
 tree_rg_loss <- mean(abs(u$test$trip_dur - tree_rg_pred))
 print(tree_rg_loss)
 
-## linear regression
+## (2) linear regression
 
 lm_rg <- lm(
   formula = trip_dur ~ lat + lon + wday + hour,
@@ -144,3 +144,20 @@ lm_rg_pred <- predict(
 
 lm_rg_loss <- mean(abs(u$test$trip_dur - lm_rg_pred))
 print(lm_rg_loss)
+
+
+## (3) tensorflow linear regression
+
+input <- function(d) {
+  input_fn(trip_dur ~ lat + lon + wday + hour,
+           data = d,
+           batch_size = 100,
+           epochs = 3)
+}
+
+lin_rg <- linear_regressor(feature_columns = feat_cols)
+
+train(lin_rg, input_fn = input(u$train))
+
+lin_rg_eval <- evaluate(lin_rg, input_fn = input(u$test))
+print(lin_rg_eval) ## average loss ~ 69%
