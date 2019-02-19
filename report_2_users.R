@@ -129,14 +129,18 @@ tree_rg_pred <- predict(
   newdata = u$test,
   type = "vector")
 
-tree_rg_eval <-
-  data.frame(u$test, prediction = tree_rg_pred) %>%
-  mutate(error = prediction - trip_dur)
-
-ave_loss <- mean(abs(tree_rg_eval$error))
-print(ave_loss)
+tree_rg_loss <- mean(abs(u$test$trip_dur - tree_rg_pred))
+print(tree_rg_loss)
 
 ## linear regression
 
-#lm(formula = trip_dur ~ lat + lon + wday + hour,
-#   data = u$train)
+lm_rg <- lm(
+  formula = trip_dur ~ lat + lon + wday + hour,
+  data = u$train)
+
+lm_rg_pred <- predict(
+  object = lm_rg,
+  newdata = u$test)
+
+lm_rg_loss <- mean(abs(u$test$trip_dur - lm_rg_pred))
+print(lm_rg_loss)
