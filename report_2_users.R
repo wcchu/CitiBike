@@ -14,25 +14,23 @@ d <-
   ## change time string to POSIX time
   mutate(time = as.POSIXct(starttime, tz = "EST"),
          trip_dur = tripduration/60) %>%
-  mutate(month = as.integer(format(time, "%m")),
-         wday = as.integer(format(time, "%w")),
+  mutate(wday = as.integer(format(time, "%w")),
          hour = as.integer(format(time, "%H"))) %>%
   select(lat = start.station.latitude,
          lon = start.station.longitude,
-         month,
          wday,
          hour,
          usertype,
          trip_dur) %>%
   mutate(usertype = as.factor(usertype))
-## Now this dataset has 5 predictor features: lat, lon, month, day, and hour.
+## Now this dataset has 5 predictor features: lat, lon, day, and hour.
 ## The responses usertype, b_year, and gender will be predicted independently from
 ## the 5 features.
-feat_names <- c("lat", "lon", "month", "wday", "hour")
+feat_names <- c("lat", "lon", "wday", "hour")
 
 ## for tensorflow
 feat_cols <- feature_columns(
-  column_numeric("lat", "lon", "month", "wday", "hour"))
+  column_numeric("lat", "lon", "wday", "hour"))
 
 ## function to split training and test set
 splitter <- function(d, t = 0.2) {
@@ -92,7 +90,7 @@ print(rf) ## error rate ~ 32%
 ## (2) tensorflow linear classifier
 
 input <- function(d) {
-  input_fn(usertype ~ lat + lon + month + wday + hour,
+  input_fn(usertype ~ lat + lon + wday + hour,
            data = d,
            batch_size = 100,
            epochs = 3)
@@ -123,7 +121,7 @@ print(dnn_cl_eval) ## average loss ~ 69%
 ## tree regression
 
 tree_rg <- tree(
-  formula = trip_dur ~ lat + lon + month + wday + hour,
+  formula = trip_dur ~ lat + lon + wday + hour,
   data = u$train)
 
 tree_rg_pred <- predict(
@@ -140,5 +138,5 @@ print(ave_loss)
 
 ## linear regression
 
-#lm(formula = trip_dur ~ lat + lon + month + wday + hour,
+#lm(formula = trip_dur ~ lat + lon + wday + hour,
 #   data = u$train)
