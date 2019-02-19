@@ -1,6 +1,7 @@
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tfestimators))
+suppressPackageStartupMessages(library(tree))
 
 raw <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
 
@@ -11,7 +12,8 @@ raw <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
 d <-
   raw %>%
   ## change time string to POSIX time
-  mutate(time = as.POSIXct(starttime, tz = "EST")) %>%
+  mutate(time = as.POSIXct(starttime, tz = "EST"),
+         trip_dur = tripduration/60) %>%
   mutate(month = as.integer(format(time, "%m")),
          wday = as.integer(format(time, "%w")),
          hour = as.integer(format(time, "%H"))) %>%
@@ -20,7 +22,8 @@ d <-
          month,
          wday,
          hour,
-         usertype) %>%
+         usertype,
+         trip_dur) %>%
   mutate(usertype = as.factor(usertype))
 ## Now this dataset has 5 predictor features: lat, lon, month, day, and hour.
 ## The responses usertype, b_year, and gender will be predicted independently from
@@ -113,3 +116,29 @@ train(dnn_cl, input_fn = input(u$train))
 
 dnn_cl_eval <- evaluate(dnn_cl, input_fn = input(u$test))
 print(dnn_cl_eval) ## average loss ~ 69%
+
+
+## 2. predict the trip duration (regression)
+
+## tree regression
+
+tree_rg <- tree(
+  formula = trip_dur ~ lat + lon + month + wday + hour,
+  data = u$train)
+
+tree_rg_pred <- predict(
+  object = tree_rg,
+  newdata = u$test,
+  type = "vector")
+
+tree_rg_eval <-
+  data.frame(u$test, prediction = tree_rg_pred) %>%
+  mutate(error = prediction - trip_dur)
+
+ave_loss <- mean(abs(tree_rg_eval$error))
+print(ave_loss)
+
+## linear regression
+
+#lm(formula = trip_dur ~ lat + lon + month + wday + hour,
+#   data = u$train)
