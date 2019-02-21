@@ -2,6 +2,7 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tfestimators))
 suppressPackageStartupMessages(library(tree))
+suppressPackageStartupMessages(library(pre))
 
 raw <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
 
@@ -70,7 +71,7 @@ u <-
     d_customers %>% sampler(m = nrow(d_subscribers)),
     d_subscribers %>% sampler(m = nrow(d_customers))
   ) %>%
-  mutate(usertype = ifelse(usertype == "Subscriber", 1, 0)) %>%
+  mutate(usertype_int = ifelse(usertype == "Subscriber", 1, 0)) %>%
   ## reduce data size for development
   sampler(m = 100000) %>%
   ## split training and test sets with 80%-20%
@@ -80,7 +81,7 @@ u <-
 rf <-
   randomForest(
     x = u$train[, feat_names],
-    y = as.factor(u$train[, "usertype"]),
+    y = u$train[, "usertype"],
     xtest = u$test[, feat_names],
     ytest = as.factor(u$test[, "usertype"])
   )
@@ -90,7 +91,7 @@ print(rf) ## error rate ~ 32%
 ## (2) tensorflow linear classifier
 
 input <- function(d) {
-  input_fn(usertype ~ lat + lon + wday + hour,
+  input_fn(usertype_int ~ lat + lon + wday + hour,
            data = d,
            batch_size = 100,
            epochs = 3)
@@ -115,6 +116,16 @@ train(dnn_cl, input_fn = input(u$train))
 dnn_cl_eval <- evaluate(dnn_cl, input_fn = input(u$test))
 print(dnn_cl_eval) ## average loss ~ 69%
 
+
+## (4) pre (rulefit) classifier
+
+pre_cl <- pre(usertype ~ lat + lon + wday + hour,
+              data = u$train,
+              family = "binomial",
+              ntrees = 5)
+
+pre_cl_pred <- predict(object = pre_cl,
+                       newdata = u$test)
 
 ## 2. predict the trip duration (regression)
 
