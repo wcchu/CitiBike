@@ -141,7 +141,7 @@ tree_rg_pred <- predict(
   type = "vector")
 
 tree_rg_loss <- mean(abs(u$test$trip_dur - tree_rg_pred))
-print(tree_rg_loss)
+print(tree_rg_loss) ## loss ~ 11.2
 
 ## (2) linear regression
 
@@ -154,7 +154,7 @@ lm_rg_pred <- predict(
   newdata = u$test)
 
 lm_rg_loss <- mean(abs(u$test$trip_dur - lm_rg_pred))
-print(lm_rg_loss)
+print(lm_rg_loss) ## loss ~ 11.3
 
 
 ## (3) tensorflow linear regression
@@ -171,4 +171,16 @@ lin_rg <- linear_regressor(feature_columns = feat_cols)
 train(lin_rg, input_fn = input(u$train))
 
 lin_rg_eval <- evaluate(lin_rg, input_fn = input(u$test))
-print(lin_rg_eval) ## average loss ~ 69%
+print(lin_rg_eval)
+
+
+## (4) tensorflow dnn regressor
+
+dnn_rg <- dnn_regressor(
+  hidden_units = c(5, 5, 5),
+  feature_columns = feat_cols)
+
+train(dnn_rg, input_fn = input(u$train))
+
+dnn_rg_eval <- evaluate(dnn_rg, input_fn = input(u$test))
+print(dnn_rg_eval)
