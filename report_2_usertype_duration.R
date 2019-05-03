@@ -125,7 +125,13 @@ pre_cl <- pre(usertype ~ lat + lon + wday + hour,
               ntrees = 5)
 
 pre_cl_pred <- predict(object = pre_cl,
-                       newdata = u$test)
+                       newdata = u$test,
+                       type = "class")
+pre_cl_err <-
+  u$test %>%
+  mutate(prediction = pre_cl_pred) %>%
+  mutate(error = ifelse(usertype == prediction, 0, 1))
+print(mean(pre_cl_err$error)) ## average loss ~ 37%
 
 ## 2. predict the trip duration (regression)
 
