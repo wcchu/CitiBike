@@ -125,36 +125,44 @@ pre_cl <- pre(usertype ~ lat + lon + wday + hour,
               ntrees = 5)
 
 pre_cl_pred <- predict(object = pre_cl,
-                       newdata = u$test)
+                       newdata = u$test,
+                       type = "class")
+pre_cl_err <-
+  u$test %>%
+  mutate(prediction = pre_cl_pred) %>%
+  mutate(error = ifelse(usertype == prediction, 0, 1))
+print(mean(pre_cl_err$error)) ## average loss ~ 37%
 
 ## 2. predict the trip duration (regression)
+
+v <- d %>% sampler(m = 100000) %>% splitter(t = 0.2)
 
 ## (1) tree regression
 
 tree_rg <- tree(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = u$train)
+  data = v$train)
 
 tree_rg_pred <- predict(
   object = tree_rg,
-  newdata = u$test,
+  newdata = v$test,
   type = "vector")
 
-tree_rg_loss <- mean(abs(u$test$trip_dur - tree_rg_pred))
-print(tree_rg_loss) ## loss ~ 11.2
+tree_rg_loss <- mean(abs(v$test$trip_dur - tree_rg_pred))
+print(tree_rg_loss) ## loss ~ 8
 
 ## (2) linear regression
 
 lm_rg <- lm(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = u$train)
+  data = v$train)
 
 lm_rg_pred <- predict(
   object = lm_rg,
-  newdata = u$test)
+  newdata = v$test)
 
-lm_rg_loss <- mean(abs(u$test$trip_dur - lm_rg_pred))
-print(lm_rg_loss) ## loss ~ 11.3
+lm_rg_loss <- mean(abs(v$test$trip_dur - lm_rg_pred))
+print(lm_rg_loss) ## loss ~ 8
 
 
 ## (3) tensorflow linear regression
@@ -168,11 +176,14 @@ input <- function(d) {
 
 lin_rg <- linear_regressor(feature_columns = feat_cols)
 
-train(lin_rg, input_fn = input(u$train))
+train(lin_rg, input_fn = input(v$train))
 
-lin_rg_eval <- evaluate(lin_rg, input_fn = input(u$test))
+lin_rg_eval <- evaluate(lin_rg, input_fn = input(v$test))
 print(lin_rg_eval)
 
+lin_rg_pred <- predict(lin_rg, input_fn = input(v$test))
+lin_rg_loss <- mean(abs(v$test$trip_dur - unlist(lin_rg_pred)))
+print(lin_rg_loss) ## loss ~ 8
 
 ## (4) tensorflow dnn regressor
 
@@ -180,7 +191,11 @@ dnn_rg <- dnn_regressor(
   hidden_units = c(5, 5, 5),
   feature_columns = feat_cols)
 
-train(dnn_rg, input_fn = input(u$train))
+train(dnn_rg, input_fn = input(v$train))
 
-dnn_rg_eval <- evaluate(dnn_rg, input_fn = input(u$test))
+dnn_rg_eval <- evaluate(dnn_rg, input_fn = input(v$test))
 print(dnn_rg_eval)
+
+dnn_rg_pred <- predict(dnn_rg, input_fn = input(v$test))
+dnn_rg_loss <- mean(abs(v$test$trip_dur - unlist(dnn_rg_pred)))
+print(dnn_rg_loss) ## loss ~ 8
