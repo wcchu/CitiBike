@@ -2,18 +2,30 @@ suppressPackageStartupMessages(library(shiny))
 suppressPackageStartupMessages(library(tidyverse))
 
 ## UI
-ui <- fluidPage(
+citi_interface <- fluidPage(
   titlePanel("Time and location distribution of rides"),
   sidebarLayout(
     sidebarPanel(
       selectInput(inputId = "user_type",
                   label = "Choose a user type:",
-                  choices = c("Subscriber", "Customer")),
+                  choices = c("All", "Subscriber", "Customer")),
+      checkboxGroupInput(inputId = "start_wday",
+                         label = "Day in a week",
+                         choices = c("Sun" = 0,
+                                     "Mon" = 1,
+                                     "Tue" = 2,
+                                     "Wed" = 3,
+                                     "Thu" = 4,
+                                     "Fri" = 5,
+                                     "Sat" = 6),
+                         selected = c(0, 1, 2, 3, 4, 5, 6),
+                         inline = TRUE),
       sliderInput(inputId = "start_time",
                   label = "Start time range",
                   min = 0.0,
                   max = 24.0,
-                  value = c(8.0, 18.0)),
+                  step = 0.5, # step is 30 mins
+                  value = c(0.0, 24.0)),
       sliderInput(inputId = "nsam_loc",
                   label = "Sampled location points",
                   min = 0,
@@ -28,8 +40,8 @@ ui <- fluidPage(
   )
 )
 
-## Server
-server <- function(input, output) {
+## Server function
+citi_func <- function(input, output, session) {
 
   ## static data
   dat <-
@@ -65,8 +77,13 @@ server <- function(input, output) {
 
   ## reactive object
   datasetInput <- reactive({
+    ## filter by user type
+    if (input$user_type != "All") {
+      dat <- dat %>% filter(user_type == input$user_type)
+    }
+    ## filter by start time in a day
     dat %>%
-      filter(user_type == input$user_type,
+      filter(wday %in% input$start_wday,
              hour >= input$start_time[1],
              hour <= input$start_time[2])
   })
@@ -84,20 +101,32 @@ server <- function(input, output) {
 
   ## output a plot of the starting locations
   output$locations <- renderPlot({
-    dataset_loc <- datasetInput() %>% select(lat_i, lon_i)
+    dataset_loc <- datasetInput() %>% select(lat_i, lon_i, lat_f, lon_f)
     dataset_loc <- sample_n(dataset_loc,
                             size = input$nsam_loc,
                             replace = (input$nsam_loc > nrow(dataset_loc)))
+    dataset_loc <-
+      rbind(
+        dataset_loc %>%
+          select(lat = lat_i, lon = lon_i) %>%
+          mutate(label = "1. start"),
+        dataset_loc %>%
+          select(lat = lat_f, lon = lon_f) %>%
+          mutate(label = "2. end")
+      )
+
     ggplot(dataset_loc) +
-      stat_density2d(aes(x = lon_i, y = lat_i, fill = ..level.., alpha = ..level..),
+      stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
                      size = 0.01, bins = 16, geom = "polygon") +
-      geom_density2d(aes(x = lon_i, y = lat_i), size = 0.3) +
+      geom_density2d(aes(x = lon, y = lat), size = 0.3) +
       scale_fill_gradient(low = "green", high = "red") +
       scale_alpha(range = c(0, 0.3), guide = FALSE) +
       geom_point(data = stations, aes(x = lon, y = lat), col = "black", size = 1) +
-      labs(x = 'Longitude', y = 'Latitude', title = 'Fig.3 Start location')
+      labs(x = 'Longitude', y = 'Latitude', title = 'Fig.3 Start location') +
+      coord_fixed(ratio = 1) +
+      facet_grid(. ~ label)
   })
 }
 
 ## Shiny App
-shinyApp(ui, server)
+shinyApp(ui = citi_interface, server = citi_func)
