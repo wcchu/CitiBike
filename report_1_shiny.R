@@ -2,7 +2,7 @@ suppressPackageStartupMessages(library(shiny))
 suppressPackageStartupMessages(library(tidyverse))
 
 ## UI
-citi_interface <- fluidPage(
+citi_ui <- fluidPage(
   titlePanel("Time and location distribution of rides"),
   sidebarLayout(
     sidebarPanel(
@@ -41,7 +41,7 @@ citi_interface <- fluidPage(
 )
 
 ## Server function
-citi_func <- function(input, output, session) {
+citi_server <- function(input, output, session) {
 
   ## static data
   dat <-
@@ -129,4 +129,4 @@ citi_func <- function(input, output, session) {
 }
 
 ## Shiny App
-shinyApp(ui = citi_interface, server = citi_func)
+shinyApp(ui = citi_ui, server = citi_server)
