@@ -6,6 +6,7 @@ citi_ui <- fluidPage(
   titlePanel("Time and location distribution of rides"),
   sidebarLayout(
     sidebarPanel(
+      h1("Filter"),
       selectInput(inputId = "user_type",
                   label = "Choose a user type:",
                   choices = c("All", "Subscriber", "Customer")),
@@ -33,9 +34,16 @@ citi_ui <- fluidPage(
                   value = 5000)
     ),
     mainPanel(
-      verbatimTextOutput(outputId = "data_count"),
-      verbatimTextOutput(outputId = "time_summary"),
-      plotOutput(outputId = "locations")
+      h1("Filtered Data"),
+      splitLayout(
+        verbatimTextOutput(outputId = "data_count"),
+        verbatimTextOutput(outputId = "time_summary")
+      ),
+      splitLayout(
+        plotOutput(outputId = "start_locations", brush = "brushed_starts"),
+        plotOutput(outputId = "end_locations", brush = "brushed_ends")
+      ),
+      dataTableOutput(outputId = "brushed_table")
     )
   )
 )
@@ -75,7 +83,7 @@ citi_server <- function(input, output, session) {
     ) %>%
     unique()
 
-  ## reactive object
+  ## filter data
   datasetInput <- reactive({
     ## filter by user type
     if (input$user_type != "All") {
@@ -85,7 +93,18 @@ citi_server <- function(input, output, session) {
     dat %>%
       filter(wday %in% input$start_wday,
              hour >= input$start_time[1],
-             hour <= input$start_time[2])
+             hour <= input$start_time[2]) %>%
+      mutate(id = row_number())
+  })
+
+  ## brushed data
+  brushed_data <- reactive({
+    brushed_starts <- brushedPoints(datasetInput(), input$brushed_starts,
+                                    xvar = "lon_i", yvar = "lat_i")
+    brushed_ends <- brushedPoints(datasetInput(), input$brushed_ends,
+                                  xvar = "lon_f", yvar = "lat_f")
+    brushed_both <- intersect(brushed_starts, brushed_ends)
+    return(brushed_both)
   })
 
   ## output a summary of start time and duration in text format
@@ -99,33 +118,34 @@ citi_server <- function(input, output, session) {
     summary(dataset_time)
   })
 
-  ## output a plot of the starting locations
-  output$locations <- renderPlot({
-    dataset_loc <- datasetInput() %>% select(lat_i, lon_i, lat_f, lon_f)
-    dataset_loc <- sample_n(dataset_loc,
-                            size = input$nsam_loc,
-                            replace = (input$nsam_loc > nrow(dataset_loc)))
-    dataset_loc <-
-      rbind(
-        dataset_loc %>%
-          select(lat = lat_i, lon = lon_i) %>%
-          mutate(label = "1. start"),
-        dataset_loc %>%
-          select(lat = lat_f, lon = lon_f) %>%
-          mutate(label = "2. end")
-      )
+  ## general plot function for locations
+  plot_locs <- function(d, nsam, title_string) {
+    sampled_data <- sample_n(d, size = nsam, replace = (nsam > nrow(d)))
 
-    ggplot(dataset_loc) +
+    ggplot(sampled_data) +
       stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
                      size = 0.01, bins = 16, geom = "polygon") +
       geom_density2d(aes(x = lon, y = lat), size = 0.3) +
       scale_fill_gradient(low = "green", high = "red") +
       scale_alpha(range = c(0, 0.3), guide = FALSE) +
       geom_point(data = stations, aes(x = lon, y = lat), col = "black", size = 1) +
-      labs(x = 'Longitude', y = 'Latitude', title = 'Fig.3 Start location') +
-      coord_fixed(ratio = 1) +
-      facet_grid(. ~ label)
+      labs(x = 'Longitude', y = 'Latitude', title = title_string) +
+      coord_fixed(ratio = 1)
+  }
+
+  ## output a plot of the starting locations
+  output$start_locations <- renderPlot({
+    start_data <- datasetInput() %>% select(lat = lat_i, lon = lon_i)
+    plot_locs(start_data, input$nsam_loc, "Start locations")
   })
+
+  ## output a plot of the ending locations
+  output$end_locations <- renderPlot({
+    end_data <- datasetInput() %>% select(lat = lat_f, lon = lon_f)
+    plot_locs(end_data, input$nsam_loc, "End locations")
+  })
+
+  output$brushed_table <- renderDataTable(brushed_data())
 }
 
 ## Shiny App
