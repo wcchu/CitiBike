@@ -26,12 +26,7 @@ citi_ui <- fluidPage(
                   min = 0.0,
                   max = 24.0,
                   step = 0.5, # step is 30 mins
-                  value = c(0.0, 24.0)),
-      sliderInput(inputId = "nsam_loc",
-                  label = "Sampled location points",
-                  min = 0,
-                  max = 10000,
-                  value = 5000)
+                  value = c(0.0, 24.0))
     ),
     mainPanel(
       h1("Filtered Data"),
@@ -84,13 +79,13 @@ citi_server <- function(input, output, session) {
     unique()
 
   ## filter data
-  datasetInput <- reactive({
+  filtered_data <- reactive({
     ## filter by user type
     if (input$user_type != "All") {
-      dat <- dat %>% filter(user_type == input$user_type)
+      d <- dat %>% filter(user_type == input$user_type)
     }
     ## filter by start time in a day
-    dat %>%
+    d %>%
       filter(wday %in% input$start_wday,
              hour >= input$start_time[1],
              hour <= input$start_time[2]) %>%
@@ -99,9 +94,9 @@ citi_server <- function(input, output, session) {
 
   ## brushed data
   brushed_data <- reactive({
-    brushed_starts <- brushedPoints(datasetInput(), input$brushed_starts,
+    brushed_starts <- brushedPoints(filtered_data(), input$brushed_starts,
                                     xvar = "lon_i", yvar = "lat_i")
-    brushed_ends <- brushedPoints(datasetInput(), input$brushed_ends,
+    brushed_ends <- brushedPoints(filtered_data(), input$brushed_ends,
                                   xvar = "lon_f", yvar = "lat_f")
     brushed_both <- intersect(brushed_starts, brushed_ends)
     return(brushed_both)
@@ -109,17 +104,17 @@ citi_server <- function(input, output, session) {
 
   ## output a summary of start time and duration in text format
   output$data_count <- renderPrint({
-    sprintf("Total data count after filter = %d", nrow(datasetInput()))
+    sprintf("Total data count after filter = %d", nrow(filtered_data()))
   })
 
   ## output a summary of start time and duration in text format
   output$time_summary <- renderPrint({
-    dataset_time <- datasetInput() %>% select(wday, hour, dur)
+    dataset_time <- filtered_data() %>% select(wday, hour, dur)
     summary(dataset_time)
   })
 
   ## general plot function for locations
-  plot_locs <- function(d, nsam, title_string) {
+  plot_locs <- function(d, nsam = 5000, title_string) {
     sampled_data <- sample_n(d, size = nsam, replace = (nsam > nrow(d)))
 
     ggplot(sampled_data) +
@@ -135,13 +130,13 @@ citi_server <- function(input, output, session) {
 
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
-    start_data <- datasetInput() %>% select(lat = lat_i, lon = lon_i)
+    start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
     plot_locs(start_data, input$nsam_loc, "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
-    end_data <- datasetInput() %>% select(lat = lat_f, lon = lon_f)
+    end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
     plot_locs(end_data, input$nsam_loc, "End locations")
   })
 
