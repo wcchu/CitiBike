@@ -40,8 +40,8 @@ citi_server <- function(input, output, session) {
 
   ## static data
   dat <-
-    #read.csv("citibike_2014-07.csv",
-    read.csv("small.csv",
+    read.csv("citibike_2014-07.csv",
+    #read.csv("small.csv",
              header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
     mutate(time = as.POSIXct(starttime, tz = "EST"),
