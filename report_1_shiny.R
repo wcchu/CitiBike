@@ -6,39 +6,31 @@ citi_ui <- fluidPage(
   titlePanel("Time and location distribution of rides"),
   sidebarLayout(
     sidebarPanel(
-      h1("Filter"),
+      width = 2,
+      h2("Filter"),
       selectInput(inputId = "user_type",
                   label = "Choose a user type:",
                   choices = c("All", "Subscriber", "Customer")),
       checkboxGroupInput(inputId = "start_wday",
                          label = "Day in a week",
-                         choices = c("Sun" = 0,
-                                     "Mon" = 1,
-                                     "Tue" = 2,
-                                     "Wed" = 3,
-                                     "Thu" = 4,
-                                     "Fri" = 5,
-                                     "Sat" = 6),
+                         choices = c("Sun" = 0, "Mon" = 1, "Tue" = 2, "Wed" = 3,
+                                     "Thu" = 4, "Fri" = 5, "Sat" = 6),
                          selected = c(0, 1, 2, 3, 4, 5, 6),
-                         inline = TRUE),
+                         inline = FALSE),
       sliderInput(inputId = "start_time",
                   label = "Start time range",
-                  min = 0.0,
-                  max = 24.0,
-                  step = 0.5, # step is 30 mins
-                  value = c(0.0, 24.0))
+                  min = 0, max = 24, step = 1, value = c(0, 24))
     ),
     mainPanel(
-      h1("Filtered Data"),
+      width = 10,
+      h2("Filtered Data"),
+      verbatimTextOutput(outputId = "data_count"),
       splitLayout(
-        verbatimTextOutput(outputId = "data_count"),
-        verbatimTextOutput(outputId = "time_summary")
+        plotOutput(height = 600, outputId = "start_locations", brush = "brushed_starts"),
+        plotOutput(height = 600, outputId = "end_locations", brush = "brushed_ends")
       ),
-      splitLayout(
-        plotOutput(outputId = "start_locations", brush = "brushed_starts"),
-        plotOutput(outputId = "end_locations", brush = "brushed_ends")
-      ),
-      dataTableOutput(outputId = "brushed_table")
+      dataTableOutput(outputId = "brushed_table"),
+      downloadButton(outputId = "brushed_download", label = "Download Table")
     )
   )
 )
@@ -48,7 +40,9 @@ citi_server <- function(input, output, session) {
 
   ## static data
   dat <-
-    read.csv("citibike_2014-07.csv", header = T, stringsAsFactors = F) %>%
+    #read.csv("citibike_2014-07.csv",
+    read.csv("small.csv",
+             header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
     mutate(time = as.POSIXct(starttime, tz = "EST"),
            dur = tripduration/60) %>%
@@ -82,7 +76,9 @@ citi_server <- function(input, output, session) {
   filtered_data <- reactive({
     ## filter by user type
     if (input$user_type != "All") {
-      d <- dat %>% filter(user_type == input$user_type)
+      d = dat <- dat %>% filter(user_type == input$user_type)
+    } else {
+      d = dat
     }
     ## filter by start time in a day
     d %>%
@@ -107,12 +103,6 @@ citi_server <- function(input, output, session) {
     sprintf("Total data count after filter = %d", nrow(filtered_data()))
   })
 
-  ## output a summary of start time and duration in text format
-  output$time_summary <- renderPrint({
-    dataset_time <- filtered_data() %>% select(wday, hour, dur)
-    summary(dataset_time)
-  })
-
   ## general plot function for locations
   plot_locs <- function(d, nsam = 5000, title_string) {
     sampled_data <- sample_n(d, size = nsam, replace = (nsam > nrow(d)))
@@ -131,16 +121,25 @@ citi_server <- function(input, output, session) {
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
     start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
-    plot_locs(start_data, input$nsam_loc, "Start locations")
+    plot_locs(d = start_data, title_string = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
     end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
-    plot_locs(end_data, input$nsam_loc, "End locations")
+    plot_locs(d = end_data, title_string = "End locations")
   })
 
+  ## output the brushed area to a table
   output$brushed_table <- renderDataTable(brushed_data())
+
+  ## download the brushed area to csv
+  output$brushed_download <- downloadHandler(
+    filename = "plot_extract.csv",
+    content = function(file) {
+      write.csv(brushed_data(), file)
+    }
+  )
 }
 
 ## Shiny App
