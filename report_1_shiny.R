@@ -8,15 +8,18 @@ citi_ui <- fluidPage(
     sidebarPanel(
       width = 2,
       h2("Filter"),
+      # input user type
       selectInput(inputId = "user_type",
                   label = "Choose a user type:",
                   choices = c("All", "Subscriber", "Customer")),
+      # input weekdays
       checkboxGroupInput(inputId = "start_wday",
                          label = "Day in a week",
                          choices = c("Sun" = 0, "Mon" = 1, "Tue" = 2, "Wed" = 3,
                                      "Thu" = 4, "Fri" = 5, "Sat" = 6),
                          selected = c(0, 1, 2, 3, 4, 5, 6),
                          inline = FALSE),
+      # input start time of day
       sliderInput(inputId = "start_time",
                   label = "Start time range",
                   min = 0, max = 24, step = 1, value = c(0, 24))
@@ -25,6 +28,7 @@ citi_ui <- fluidPage(
       width = 10,
       h2("Filtered Data"),
       verbatimTextOutput(outputId = "data_count"),
+      plotOutput(outputId = "start_times"),
       splitLayout(
         plotOutput(height = 600, outputId = "start_locations", brush = "brushed_starts"),
         plotOutput(height = 600, outputId = "end_locations", brush = "brushed_ends")
@@ -88,6 +92,13 @@ citi_server <- function(input, output, session) {
       mutate(id = row_number())
   })
 
+  ## sample data
+  sampled_data <- reactive({
+    nsam = 5000
+    sample_n(filtered_data(), size = nsam,
+             replace = (nsam > nrow(filtered_data())))
+  })
+
   ## brushed data
   brushed_data <- reactive({
     brushed_starts <- brushedPoints(filtered_data(), input$brushed_starts,
@@ -103,11 +114,19 @@ citi_server <- function(input, output, session) {
     sprintf("Total data count after filter = %d", nrow(filtered_data()))
   })
 
-  ## general plot function for locations
-  plot_locs <- function(d, nsam = 5000, title_string) {
-    sampled_data <- sample_n(d, size = nsam, replace = (nsam > nrow(d)))
+  ## output a start time distribution including original and filtered data
+  output$start_times <- renderPlot({
+    ggplot(sampled_data() %>% select(wday, hour)) +
+      stat_density2d(aes(x = wday, y = hour, fill = ..level..),
+                     size = 0.1, geom = "polygon") +
+      xlim(-0.5, 6.5) + ylim(-0.5, 24.5) +
+      labs(title = "Distribution of start times",
+           x = "Weekday", y = "Hour")
+  })
 
-    ggplot(sampled_data) +
+  ## general plot function for locations
+  plot_locs <- function(d, title_string) {
+    ggplot(d) +
       stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
                      size = 0.01, bins = 16, geom = "polygon") +
       geom_density2d(aes(x = lon, y = lat), size = 0.3) +
@@ -120,13 +139,13 @@ citi_server <- function(input, output, session) {
 
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
-    start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
+    start_data <- sampled_data() %>% select(lat = lat_i, lon = lon_i)
     plot_locs(d = start_data, title_string = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
-    end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
+    end_data <- sampled_data() %>% select(lat = lat_f, lon = lon_f)
     plot_locs(d = end_data, title_string = "End locations")
   })
 
