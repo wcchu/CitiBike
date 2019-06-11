@@ -6,7 +6,7 @@ citi_ui <- fluidPage(
   titlePanel("Time and location distribution of rides"),
   sidebarLayout(
     sidebarPanel(
-      width = 2,
+      width = 3,
       h2("Filter"),
       # input user type
       selectInput(inputId = "user_type",
@@ -25,7 +25,7 @@ citi_ui <- fluidPage(
                   min = 0, max = 24, step = 1, value = c(0, 24))
     ),
     mainPanel(
-      width = 10,
+      width = 9,
       h2("Filtered Data"),
       verbatimTextOutput(outputId = "data_count"),
       plotOutput(outputId = "start_times"),
