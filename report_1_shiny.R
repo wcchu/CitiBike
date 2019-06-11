@@ -22,16 +22,17 @@ citi_ui <- fluidPage(
       # input start time of day
       sliderInput(inputId = "start_time",
                   label = "Start time range",
-                  min = 0, max = 24, step = 1, value = c(0, 24))
+                  min = 0, max = 24, step = 1, value = c(0, 24)),
+      # data count before & after filter
+      textOutput(outputId = "data_count")
     ),
     mainPanel(
       width = 9,
       h2("Filtered Data"),
-      verbatimTextOutput(outputId = "data_count"),
-      plotOutput(outputId = "start_times"),
+      plotOutput(outputId = "start_times", height = 500),
       splitLayout(
-        plotOutput(height = 600, outputId = "start_locations", brush = "brushed_starts"),
-        plotOutput(height = 600, outputId = "end_locations", brush = "brushed_ends")
+        plotOutput(outputId = "start_locations", height = 600, brush = "brushed_starts"),
+        plotOutput(outputId = "end_locations", height = 600, brush = "brushed_ends")
       ),
       dataTableOutput(outputId = "brushed_table"),
       downloadButton(outputId = "brushed_download", label = "Download Table")
@@ -51,7 +52,7 @@ citi_server <- function(input, output, session) {
     mutate(time = as.POSIXct(starttime, tz = "EST"),
            dur = tripduration/60) %>%
     mutate(wday = as.integer(format(time, "%w")),
-           hour = as.integer(format(time, "%H"))) %>%
+           hour = as.integer(format(time, "%H")) + as.integer(format(time, "%M")) / 60) %>%
     select(wday,
            hour,
            dur,
@@ -76,27 +77,34 @@ citi_server <- function(input, output, session) {
     ) %>%
     unique()
 
-  ## filter data
-  filtered_data <- reactive({
-    ## filter by user type
-    if (input$user_type != "All") {
-      d = dat <- dat %>% filter(user_type == input$user_type)
-    } else {
-      d = dat
-    }
-    ## filter by start time in a day
-    d %>%
-      filter(wday %in% input$start_wday,
-             hour >= input$start_time[1],
-             hour <= input$start_time[2]) %>%
-      mutate(id = row_number())
+  ## label whether the data passes filter or not
+  all_data <- reactive({
+    dat %>%
+      mutate(
+        pass = (
+          ifelse(input$user_type == "All", TRUE, user_type == input$user_type) &
+          wday %in% input$start_wday &
+          hour >= input$start_time[1] &
+          hour <= input$start_time[2]
+        )
+      )
   })
 
   ## sample data
-  sampled_data <- reactive({
+  sampled_all_data <- reactive({
     nsam = 5000
-    sample_n(filtered_data(), size = nsam,
-             replace = (nsam > nrow(filtered_data())))
+    sample_n(all_data(), size = nsam, replace = (nsam > nrow(all_data())))
+  })
+
+  ## filter data
+  filtered_data <- reactive({
+    all_data() %>% filter(pass == TRUE)
+  })
+
+  ## sample filtered data
+  sampled_filtered_data <- reactive({
+    nsam = 5000
+    sample_n(filtered_data(), size = nsam, replace = (nsam > nrow(filtered_data())))
   })
 
   ## brushed data
@@ -109,19 +117,23 @@ citi_server <- function(input, output, session) {
     return(brushed_both)
   })
 
-  ## output a summary of start time and duration in text format
+  ## output data count
   output$data_count <- renderPrint({
-    sprintf("Total data count after filter = %d", nrow(filtered_data()))
+    sprintf("Data count after/before filter = %d/%d", nrow(filtered_data()), nrow(dat))
   })
 
   ## output a start time distribution including original and filtered data
   output$start_times <- renderPlot({
-    ggplot(sampled_data() %>% select(wday, hour)) +
-      stat_density2d(aes(x = wday, y = hour, fill = ..level..),
-                     size = 0.1, geom = "polygon") +
-      xlim(-0.5, 6.5) + ylim(-0.5, 24.5) +
+    d <-
+      sampled_all_data() %>%
+      mutate(time = wday + hour/24) %>%
+      select(time, pass)
+    ggplot(d) +
+      geom_histogram(aes(x = time, fill = pass),
+                     position = "identity", binwidth = 0.05, alpha = 0.3) +
+      xlim(-0.1, 7.1) +
       labs(title = "Distribution of start times",
-           x = "Weekday", y = "Hour")
+           x = "Time in a week (day)", y = "Count")
   })
 
   ## general plot function for locations
@@ -139,13 +151,13 @@ citi_server <- function(input, output, session) {
 
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
-    start_data <- sampled_data() %>% select(lat = lat_i, lon = lon_i)
+    start_data <- sampled_filtered_data() %>% select(lat = lat_i, lon = lon_i)
     plot_locs(d = start_data, title_string = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
-    end_data <- sampled_data() %>% select(lat = lat_f, lon = lon_f)
+    end_data <- sampled_filtered_data() %>% select(lat = lat_f, lon = lon_f)
     plot_locs(d = end_data, title_string = "End locations")
   })
 
