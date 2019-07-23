@@ -28,13 +28,20 @@ ui <- fluidPage(
     mainPanel(
       width = 9,
       h2("Filtered Data"),
-      plotOutput(outputId = "start_times", height = 500),
-      splitLayout(
-        plotOutput(outputId = "start_locations", height = 600, brush = "brushed_starts"),
-        plotOutput(outputId = "end_locations", height = 600, brush = "brushed_ends")
-      ),
-      dataTableOutput(outputId = "brushed_table"),
-      downloadButton(outputId = "brushed_download", label = "Download Table")
+      tabsetPanel(
+        tabPanel(
+          "Time",
+          plotOutput(outputId = "start_times", height = 500)),
+        tabPanel(
+          "Location",
+          splitLayout(
+            plotOutput(outputId = "start_locations", height = 600, brush = "brushed_starts"),
+            plotOutput(outputId = "end_locations", height = 600, brush = "brushed_ends")
+          ),
+          "Choose the area of start locations and area of end locations to generate data table",
+          dataTableOutput(outputId = "brushed_table"),
+          downloadButton(outputId = "brushed_download", label = "Download Table"))
+      )
     )
   )
 )
