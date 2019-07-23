@@ -35,12 +35,12 @@ ui <- fluidPage(
         tabPanel(
           "Location",
           splitLayout(
-            plotOutput(outputId = "start_locations", height = 600, brush = "brushed_starts"),
-            plotOutput(outputId = "end_locations", height = 600, brush = "brushed_ends")
+            plotOutput(outputId = "start_locations", height = 600, brush = "br_start_locs"),
+            plotOutput(outputId = "end_locations", height = 600, brush = "br_end_locs")
           ),
-          "Choose the area of start locations and area of end locations to generate data table",
-          dataTableOutput(outputId = "brushed_table"),
-          downloadButton(outputId = "brushed_download", label = "Download Table"))
+          "Choose start and end locations to generate data table",
+          dataTableOutput(outputId = "br_loc_table"),
+          downloadButton(outputId = "br_loc_download", label = "Download Table"))
       )
     )
   )

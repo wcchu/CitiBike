@@ -5,7 +5,7 @@ server <- function(input, output, session) {
 
   ## static data
   dat <-
-    read.csv("../citibike_2014-07.csv",
+    read.csv("../citibike_small.csv",
     #read.csv("small.csv",
              header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
@@ -67,14 +67,13 @@ server <- function(input, output, session) {
     sample_n(filtered_data(), size = nsam, replace = (nsam > nrow(filtered_data())))
   })
 
-  ## brushed data
-  brushed_data <- reactive({
-    brushed_starts <- brushedPoints(filtered_data(), input$brushed_starts,
-                                    xvar = "lon_i", yvar = "lat_i")
-    brushed_ends <- brushedPoints(filtered_data(), input$brushed_ends,
-                                  xvar = "lon_f", yvar = "lat_f")
-    brushed_both <- intersect(brushed_starts, brushed_ends)
-    return(brushed_both)
+  ## brushed locations
+  br_loc_data <- reactive({
+    intersect(
+      brushedPoints(filtered_data(), input$br_start_locs,
+                    xvar = "lon_i", yvar = "lat_i"),
+      brushedPoints(filtered_data(), input$br_end_locs,
+                    xvar = "lon_f", yvar = "lat_f"))
   })
 
   ## output data count
@@ -122,13 +121,13 @@ server <- function(input, output, session) {
   })
 
   ## output the brushed area to a table
-  output$brushed_table <- renderDataTable(brushed_data())
+  output$br_loc_table <- renderDataTable(br_loc_data())
 
   ## download the brushed area to csv
-  output$brushed_download <- downloadHandler(
-    filename = "plot_extract.csv",
+  output$br_loc_download <- downloadHandler(
+    filename = "brushed_locations.csv",
     content = function(file) {
-      write.csv(brushed_data(), file)
+      write.csv(br_loc_data(), file)
     }
   )
 }
