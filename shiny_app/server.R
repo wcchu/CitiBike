@@ -27,7 +27,8 @@ server <- function(input, output, session) {
            bike = bikeid,
            user_type = usertype,
            birth = birth.year,
-           gender)
+           gender) %>%
+    mutate(wdaytime = wday + hour/24)
 
   ## all stations
   stations <-
@@ -76,6 +77,11 @@ server <- function(input, output, session) {
                     xvar = "lon_f", yvar = "lat_f"))
   })
 
+  ## brushed time
+  br_time_data <- reactive({
+    brushedPoints(filtered_data(), input$br_start_time, xvar = "wdaytime")
+  })
+
   ## output data count
   output$data_count <- renderPrint({
     sprintf("Data count after/before filter = %d/%d", nrow(filtered_data()), nrow(dat))
@@ -85,10 +91,9 @@ server <- function(input, output, session) {
   output$start_times <- renderPlot({
     d <-
       sampled_all_data() %>%
-      mutate(time = wday + hour/24) %>%
-      select(time, pass)
+      select(wdaytime, pass)
     ggplot(d) +
-      geom_histogram(aes(x = time, fill = pass),
+      geom_histogram(aes(x = wdaytime, fill = pass),
                      position = "identity", binwidth = 0.05, alpha = 0.3) +
       xlim(-0.1, 7.1) +
       labs(title = "Distribution of start times",
@@ -128,6 +133,17 @@ server <- function(input, output, session) {
     filename = "brushed_locations.csv",
     content = function(file) {
       write.csv(br_loc_data(), file)
+    }
+  )
+
+  ## output the brushed time to a table
+  output$br_time_table <- renderDataTable(br_time_data())
+
+  ## download the brushed area to csv
+  output$br_time_download <- downloadHandler(
+    filename = "brushed_times.csv",
+    content = function(file) {
+      write.csv(br_time_data(), file)
     }
   )
 }

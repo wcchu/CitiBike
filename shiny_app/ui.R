@@ -31,14 +31,19 @@ ui <- fluidPage(
       tabsetPanel(
         tabPanel(
           "Time",
-          plotOutput(outputId = "start_times", height = 500)),
+          plotOutput(outputId = "start_times", height = 500,
+                     # this brush has only x-direction
+                     brush = brushOpts(id = "br_start_time", direction = "x")),
+          h4("Brush start time to generate data table"),
+          dataTableOutput(outputId = "br_time_table"),
+          downloadButton(outputId = "br_time_download", label = "Download Table")),
         tabPanel(
           "Location",
           splitLayout(
             plotOutput(outputId = "start_locations", height = 600, brush = "br_start_locs"),
             plotOutput(outputId = "end_locations", height = 600, brush = "br_end_locs")
           ),
-          "Choose start and end locations to generate data table",
+          h4("Brush start and end locations to generate data table"),
           dataTableOutput(outputId = "br_loc_table"),
           downloadButton(outputId = "br_loc_download", label = "Download Table"))
       )
