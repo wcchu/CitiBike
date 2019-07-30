@@ -5,7 +5,7 @@ server <- function(input, output, session) {
 
   ## static data
   dat <-
-    read.csv("../citibike_small.csv",
+    read.csv("../citibike_2014-07.csv",
     #read.csv("small.csv",
              header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
@@ -92,9 +92,11 @@ server <- function(input, output, session) {
     d <-
       sampled_all_data() %>%
       select(wdaytime, pass)
-    ggplot(d) +
-      geom_histogram(aes(x = wdaytime, fill = pass),
+    ggplot() +
+      geom_histogram(data = d, aes(x = wdaytime),
                      position = "identity", binwidth = 0.05, alpha = 0.3) +
+      geom_histogram(data = d %>% filter(pass), aes(x = wdaytime),
+                     position = "identity", binwidth = 0.05, alpha = 0.3, fill = "red") +
       xlim(-0.1, 7.1) +
       labs(title = "Distribution of start times",
            x = "Time in a week (day)", y = "Count")
