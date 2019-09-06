@@ -5,8 +5,7 @@ server <- function(input, output, session) {
 
   ## static data
   dat <-
-    read.csv("../citibike_2014-07.csv",
-    #read.csv("small.csv",
+    read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
              header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
     mutate(time = as.POSIXct(starttime, tz = "EST"),
