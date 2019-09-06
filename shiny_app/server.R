@@ -7,6 +7,8 @@ server <- function(input, output, session) {
   dat <-
     read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
              header = T, stringsAsFactors = F) %>%
+    # immediately reduce data for memory in deployment
+    sample_n(size = 20000, replace = F) %>%
     # convert time to week day and hour
     mutate(time = as.POSIXct(starttime, tz = "EST"),
            dur = tripduration/60) %>%
