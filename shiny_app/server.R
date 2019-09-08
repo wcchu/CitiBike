@@ -2,8 +2,9 @@ suppressPackageStartupMessages(library(shiny))
 suppressPackageStartupMessages(library(tidyverse))
 
 ## general plot function for locations
-plot_locs <- function(d, s, t) {
-  ggplot(d) +
+plot_locs <- function(d, n, s, t) {
+  r <- (n > nrow(d)) # replace if sample size larger than data
+  ggplot(d %>% sample_n(n, replace = r)) +
     stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
                    size = 0.01, bins = 16, geom = "polygon") +
     geom_density2d(aes(x = lon, y = lat), size = 0.3) +
@@ -65,7 +66,9 @@ server <- function(input, output, session) {
 
   ## filter data
   filtered_data <- reactive({
-    all_data() %>% filter(pass == TRUE)
+    all_data() %>%
+      filter(pass == TRUE) %>%
+      select(-pass)
   })
 
   ## brushed locations
@@ -102,13 +105,13 @@ server <- function(input, output, session) {
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
     start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
-    plot_locs(d = start_data, s = stations, t = "Start locations")
+    plot_locs(d = start_data, n = 5000, s = stations, t = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
     end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
-    plot_locs(d = end_data, s = stations, t = "End locations")
+    plot_locs(d = end_data, n = 5000, s = stations, t = "End locations")
   })
 
   ## output the brushed area to a table
