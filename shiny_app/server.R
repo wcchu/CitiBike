@@ -37,7 +37,7 @@ stations <-
 ## general plot function for locations
 plot_locs <- function(d, n, s, t) {
   r <- (n > nrow(d)) # replace if sample size larger than data
-  ggplot(d %>% sample_n(n, replace = r)) +
+  ggplot(d %>% sample_n(size = n, replace = r)) +
     stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
                    size = 0.01, bins = 16, geom = "polygon") +
     geom_density2d(aes(x = lon, y = lat), size = 0.3) +
@@ -63,32 +63,21 @@ server <- function(input, output, session) {
       )
   })
 
+
+  ## Filtering in the left panel
   ## filter data
   filtered_data <- reactive({
     all_data() %>%
       filter(pass == TRUE) %>%
       select(-pass)
   })
-
-  ## brushed locations
-  br_loc_data <- reactive({
-    intersect(
-      brushedPoints(filtered_data(), input$br_start_locs,
-                    xvar = "lon_i", yvar = "lat_i"),
-      brushedPoints(filtered_data(), input$br_end_locs,
-                    xvar = "lon_f", yvar = "lat_f"))
-  })
-
-  ## brushed time
-  br_time_data <- reactive({
-    brushedPoints(filtered_data(), input$br_start_time, xvar = "wdaytime")
-  })
-
   ## output data count
   output$data_count <- renderPrint({
     sprintf("Data count after/before filter = %d/%d", nrow(filtered_data()), nrow(dat))
   })
 
+
+  ## Time page
   ## output a start time distribution including original and filtered data
   output$start_times <- renderPlot({
     ggplot() +
@@ -100,38 +89,47 @@ server <- function(input, output, session) {
       labs(title = "Distribution of start times",
            x = "Time in a week (day)", y = "Count")
   })
-
-  ## output a plot of the starting locations
-  output$start_locations <- renderPlot({
-    start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
-    plot_locs(d = start_data, n = 5000, s = stations, t = "Start locations")
+  ## brushed time
+  br_time_data <- reactive({
+    brushedPoints(filtered_data(), input$br_start_time, xvar = "wdaytime")
   })
-
-  ## output a plot of the ending locations
-  output$end_locations <- renderPlot({
-    end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
-    plot_locs(d = end_data, n = 5000, s = stations, t = "End locations")
-  })
-
-  ## output the brushed area to a table
-  output$br_loc_table <- renderDataTable(br_loc_data())
-
-  ## download the brushed area to csv
-  output$br_loc_download <- downloadHandler(
-    filename = "brushed_locations.csv",
-    content = function(file) {
-      write.csv(br_loc_data(), file)
-    }
-  )
-
   ## output the brushed time to a table
   output$br_time_table <- renderDataTable(br_time_data())
-
   ## download the brushed area to csv
   output$br_time_download <- downloadHandler(
     filename = "brushed_times.csv",
     content = function(file) {
       write.csv(br_time_data(), file)
+    }
+  )
+
+
+  ## Location page
+  ## output a plot of the starting locations
+  output$start_locations <- renderPlot({
+    start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
+    plot_locs(d = start_data, n = 5000, s = stations, t = "Start locations")
+  })
+  ## output a plot of the ending locations
+  output$end_locations <- renderPlot({
+    end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
+    plot_locs(d = end_data, n = 5000, s = stations, t = "End locations")
+  })
+  ## brushed locations
+  br_loc_data <- reactive({
+    intersect(
+      brushedPoints(filtered_data(), input$br_start_locs,
+                    xvar = "lon_i", yvar = "lat_i"),
+      brushedPoints(filtered_data(), input$br_end_locs,
+                    xvar = "lon_f", yvar = "lat_f"))
+  })
+  ## output the brushed area to a table
+  output$br_loc_table <- renderDataTable(br_loc_data())
+  ## download the brushed area to csv
+  output$br_loc_download <- downloadHandler(
+    filename = "brushed_locations.csv",
+    content = function(file) {
+      write.csv(br_loc_data(), file)
     }
   )
 }
