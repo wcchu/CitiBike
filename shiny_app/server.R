@@ -5,10 +5,7 @@ server <- function(input, output, session) {
 
   ## static data
   dat <-
-    read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
-             header = T, stringsAsFactors = F) %>%
-    # immediately reduce data for memory in deployment
-    sample_n(size = 20000, replace = F) %>%
+    read.csv("data.csv", header = T, stringsAsFactors = F) %>%
     # convert time to week day and hour
     mutate(time = as.POSIXct(starttime, tz = "EST"),
            dur = tripduration/60) %>%
@@ -53,21 +50,9 @@ server <- function(input, output, session) {
       )
   })
 
-  ## sample data
-  sampled_all_data <- reactive({
-    nsam = 5000
-    sample_n(all_data(), size = nsam, replace = (nsam > nrow(all_data())))
-  })
-
   ## filter data
   filtered_data <- reactive({
     all_data() %>% filter(pass == TRUE)
-  })
-
-  ## sample filtered data
-  sampled_filtered_data <- reactive({
-    nsam = 5000
-    sample_n(filtered_data(), size = nsam, replace = (nsam > nrow(filtered_data())))
   })
 
   ## brushed locations
@@ -91,13 +76,10 @@ server <- function(input, output, session) {
 
   ## output a start time distribution including original and filtered data
   output$start_times <- renderPlot({
-    d <-
-      sampled_all_data() %>%
-      select(wdaytime, pass)
     ggplot() +
-      geom_histogram(data = d, aes(x = wdaytime),
+      geom_histogram(data = all_data(), aes(x = wdaytime),
                      position = "identity", binwidth = 0.05, alpha = 0.3) +
-      geom_histogram(data = d %>% filter(pass), aes(x = wdaytime),
+      geom_histogram(data = filtered_data(), aes(x = wdaytime),
                      position = "identity", binwidth = 0.05, alpha = 0.3, fill = "red") +
       xlim(-0.1, 7.1) +
       labs(title = "Distribution of start times",
@@ -119,13 +101,13 @@ server <- function(input, output, session) {
 
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
-    start_data <- sampled_filtered_data() %>% select(lat = lat_i, lon = lon_i)
+    start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
     plot_locs(d = start_data, title_string = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
-    end_data <- sampled_filtered_data() %>% select(lat = lat_f, lon = lon_f)
+    end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
     plot_locs(d = end_data, title_string = "End locations")
   })
 
