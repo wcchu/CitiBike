@@ -1,6 +1,19 @@
 suppressPackageStartupMessages(library(shiny))
 suppressPackageStartupMessages(library(tidyverse))
 
+## general plot function for locations
+plot_locs <- function(d, s, t) {
+  ggplot(d) +
+    stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
+                   size = 0.01, bins = 16, geom = "polygon") +
+    geom_density2d(aes(x = lon, y = lat), size = 0.3) +
+    scale_fill_gradient(low = "green", high = "red") +
+    scale_alpha(range = c(0, 0.3), guide = FALSE) +
+    geom_point(data = s, aes(x = lon, y = lat), col = "black", size = 1) +
+    labs(x = 'Longitude', y = 'Latitude', title = t) +
+    coord_fixed(ratio = 1)
+}
+
 server <- function(input, output, session) {
 
   ## static data
@@ -86,29 +99,16 @@ server <- function(input, output, session) {
            x = "Time in a week (day)", y = "Count")
   })
 
-  ## general plot function for locations
-  plot_locs <- function(d, title_string) {
-    ggplot(d) +
-      stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
-                     size = 0.01, bins = 16, geom = "polygon") +
-      geom_density2d(aes(x = lon, y = lat), size = 0.3) +
-      scale_fill_gradient(low = "green", high = "red") +
-      scale_alpha(range = c(0, 0.3), guide = FALSE) +
-      geom_point(data = stations, aes(x = lon, y = lat), col = "black", size = 1) +
-      labs(x = 'Longitude', y = 'Latitude', title = title_string) +
-      coord_fixed(ratio = 1)
-  }
-
   ## output a plot of the starting locations
   output$start_locations <- renderPlot({
     start_data <- filtered_data() %>% select(lat = lat_i, lon = lon_i)
-    plot_locs(d = start_data, title_string = "Start locations")
+    plot_locs(d = start_data, s = stations, t = "Start locations")
   })
 
   ## output a plot of the ending locations
   output$end_locations <- renderPlot({
     end_data <- filtered_data() %>% select(lat = lat_f, lon = lon_f)
-    plot_locs(d = end_data, title_string = "End locations")
+    plot_locs(d = end_data, s = stations, t = "End locations")
   })
 
   ## output the brushed area to a table
