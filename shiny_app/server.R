@@ -1,6 +1,39 @@
 suppressPackageStartupMessages(library(shiny))
 suppressPackageStartupMessages(library(tidyverse))
 
+## static data
+dat <-
+  read.csv("data.csv", header = T, stringsAsFactors = F) %>%
+  # convert time to week day and hour
+  mutate(time = as.POSIXct(starttime, tz = "EST"),
+         dur = tripduration/60) %>%
+  mutate(wday = as.integer(format(time, "%w")),
+         hour = as.integer(format(time, "%H")) + as.integer(format(time, "%M")) / 60) %>%
+  select(wday,
+         hour,
+         dur,
+         id_i = start.station.id,
+         sta_i = start.station.name,
+         lat_i = start.station.latitude,
+         lon_i = start.station.longitude,
+         id_f = end.station.id,
+         sta_f = end.station.name,
+         lat_f = end.station.latitude,
+         lon_f = end.station.longitude,
+         bike = bikeid,
+         user_type = usertype,
+         birth = birth.year,
+         gender) %>%
+  mutate(wdaytime = wday + hour/24)
+
+## all stations
+stations <-
+  rbind(
+    dat %>% select(id = id_i, sta = sta_i, lat = lat_i, lon = lon_i),
+    dat %>% select(id = id_f, sta = sta_f, lat = lat_f, lon = lon_f)
+  ) %>%
+  unique()
+
 ## general plot function for locations
 plot_locs <- function(d, n, s, t) {
   r <- (n > nrow(d)) # replace if sample size larger than data
@@ -16,40 +49,6 @@ plot_locs <- function(d, n, s, t) {
 }
 
 server <- function(input, output, session) {
-
-  ## static data
-  dat <-
-    read.csv("data.csv", header = T, stringsAsFactors = F) %>%
-    # convert time to week day and hour
-    mutate(time = as.POSIXct(starttime, tz = "EST"),
-           dur = tripduration/60) %>%
-    mutate(wday = as.integer(format(time, "%w")),
-           hour = as.integer(format(time, "%H")) + as.integer(format(time, "%M")) / 60) %>%
-    select(wday,
-           hour,
-           dur,
-           id_i = start.station.id,
-           sta_i = start.station.name,
-           lat_i = start.station.latitude,
-           lon_i = start.station.longitude,
-           id_f = end.station.id,
-           sta_f = end.station.name,
-           lat_f = end.station.latitude,
-           lon_f = end.station.longitude,
-           bike = bikeid,
-           user_type = usertype,
-           birth = birth.year,
-           gender) %>%
-    mutate(wdaytime = wday + hour/24)
-
-  ## all stations
-  stations <-
-    rbind(
-      dat %>% select(id = id_i, sta = sta_i, lat = lat_i, lon = lon_i),
-      dat %>% select(id = id_f, sta = sta_f, lat = lat_f, lon = lon_f)
-    ) %>%
-    unique()
-
   ## label whether the data passes filter or not
   all_data <- reactive({
     req(input$user_type)
