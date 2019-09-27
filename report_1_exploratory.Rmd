@@ -1,51 +1,51 @@
 ---
-title: 'CitiBike rental system Part 1: Exploratory data analysis'
+title: 'CitiBike rental system: Exploratory data analysis'
 author: "Wei-Chun Chu"
-date: "8 November 2015"
+date: "2019-09-27"
 output: pdf_document
 ---
 
-Abstract: We study how riders used the CitiBike bike rental system in New York City in July 2014. In Part 1: Exploratory data analysis, we find the basic facts of how people used this system. The data is visually explored and summarized with basic time and location information. This analysis provides an intuitive understanding of the details in Part 2 and Part 3. Possible extension of this work is also discussed.
+Abstract: We study how riders used the CitiBike bike rental system in New York City in July 2014. In the data exploration part, we find the basic facts of how people used this system. A shiny app visualizes the data and this doc summarizes it. They provide an intuitive understanding of the project.
 
-# 1. Data structure and basic system profile
+# 1. Data structure and profile
 
-First we load the csv file into R as the master dataset 'citibike'. The dataset records all CitiBike rides in July 2014. Its column names are renamed for simplicity.
+First we load the file and rename the columns for convenience.
 
 ```{r}
+suppressPackageStartupMessages(library(tidyverse))
 set.seed(123456)
-library(dplyr) # in the whole project we use dplyr package to manipulate datasets.
-citibike = read.csv('citibike_2014-07.csv', header = T)
-colnames(citibike) = c("dur", "ti", "tf",
-                       "si", "namei", "lati", "loni",
-                       "sf", "namef", "latf", "lonf",
-                       "bike", "type", "birth", "sex")
-str(citibike)
+data <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
+                 header = T, stringsAsFactors = F)
+colnames(data) = c("dur", "ti", "tf",
+                   "si", "namei", "lati", "loni",
+                   "sf", "namef", "latf", "lonf",
+                   "bike", "type", "birth", "gender")
+str(data)
 ```
 
-Each observation (row) is a ride, with start time/location and end time/location, bike id, user type (subscriber or customer), and if a subscriber, the gender and birthyear. From the CitiBike website, we know that the "subscribers" paid annual fees and the "customers" rented bikes from 24 hours to 7 days each time. It is most likely that subscribers were daily commuters and the customers were tourist or visitors. In such a case it will be very interesting to differentiate the behaviours of these two groups, since NYC residents and short-term visitors represent very different business opportunities. The number of rides by subscribers and by customers are:
+Each observation (row) is a ride, with start time/location and end time/location, bike id, user type (subscriber or customer), and if a subscriber, the gender and birthyear. From the CitiBike website, we know that the "subscribers" pay annual fees and the "customers" rent bikes with the duration from 24 hours to 7 days each time. It is most likely that subscribers are daily commuters and the customers are visitors. In such a case it will be very interesting to differentiate the behaviours of these two groups, since NYC residents and short-term visitors represent very different business opportunities for CitiBike. The number of rides by subscribers and by customers are:
 
 ```{r}
-table(citibike$type)
+table(data$type)
 ```
 
-About 12% of the rides were by customers. We checked the data in winter (January 2014) and found that the percentage of customers was very low (about 2.5%) and it would be harder to provide reliable information for customer behaviours. It is for this reason we analyze the July data in this work. The winter data could be interesting as well and can be studied in the future.
+About 12% of the rides are by customers. We found that the percentage of customers was very low (about 2.5%) in winter (January 2014) and it would be harder there to provide reliable information for customer behaviours. It is for this reason we analyze the July data in this work.
 
 A few basic fact of the system can be easily drawn:
 
 ```{r}
-n_bikes = n_distinct(citibike$bike) # total number of bikes
-n_sta = n_distinct(citibike$si) # total number of stations
+n_bikes = n_distinct(data$bike) # total number of bikes
+n_sta = n_distinct(data$si) # total number of stations
 print(c(n_bikes, n_sta))
 ```
 
-There were totally 6204 bikes and 328 stations in the system, where we have assumed all bikes have been used at least once so that they appear in this dataset. In average a station hosted about 20 bikes.
+There are totally 6204 bikes and 328 stations in the system, where we assume all bikes have been used at least once. In average a station hosts about 20 bikes.
 
 # 2. Distribution of rides in time and space
 
-To have the first impression of how people used the system, we want to know when and where people rode most frequently. In each of Fig.1 to Fig.4, we drawn 5000 random samples from 'master' and plot the distribution in the 2D map of day-time or longitude-latitude. The sampled datasets can be plotted much faster than using the complete dataset without losing quality.
+To have the first impression of how people use the system, we want to know when and where people ride most frequently. In each of Fig.1 to Fig.4, we draw 5000 random samples and plot the distribution in the 2D map of day-time or longitude-latitude. The sampled datasets can be plotted much faster than using the complete dataset without losing quality.
 
 ```{r}
-library(ggmap)
 library(ggplot2)
 ```
 
@@ -53,9 +53,9 @@ The temporal distribution of starting biking is
 
 ```{r, echo = F}
 # time is defined by H + M/60 where H is the hour and M is the minute
-tmp = data.frame(hi = round(as.integer(strftime(citibike$ti, format = "%H")) +
-                            as.integer(strftime(citibike$ti, format = "%M")) / 60, 2),
-                 di = as.integer(strftime(citibike$ti, format = "%u")))
+tmp = data.frame(hi = round(as.integer(strftime(data$ti, format = "%H")) +
+                            as.integer(strftime(data$ti, format = "%M")) / 60, 2),
+                 di = as.integer(strftime(data$ti, format = "%u")))
 tmp = tmp %>% sample_n(5000)
 fig = ggplot() +
   stat_density2d(data = tmp, aes(x = di, y = hi, fill = ..level..), geom = 'polygon') +
@@ -69,9 +69,9 @@ print(fig)
 Similarly, the end time is plotted in the following figure:
 
 ```{r, echo = F}
-tmp = data.frame(hf = round(as.integer(strftime(citibike$tf, format = "%H")) +
-                            as.integer(strftime(citibike$tf, format = "%M")) / 60, 2),
-                 df = as.integer(strftime(citibike$tf, format = "%u")))
+tmp = data.frame(hf = round(as.integer(strftime(data$tf, format = "%H")) +
+                            as.integer(strftime(data$tf, format = "%M")) / 60, 2),
+                 df = as.integer(strftime(data$tf, format = "%u")))
 tmp = tmp %>% sample_n(5000)
 fig = ggplot() +
   stat_density2d(data = tmp, aes(x = df, y = hf, fill = ..level..), geom = 'polygon') +
@@ -82,13 +82,13 @@ fig = ggplot() +
 print(fig)
 ```
 
-From Fig.1 and Fig.2, it is easy to see that most people rode on weekdays starting roughly around 8 am and 18 pm, and ending just slightly later than the start time. This is in line with the time most people go to work and return from work. Since we assume that NYC commuters were the majority of the riders, this result is not surprising. It is also worth pointing out that people rode bicycles on Saturday and Sunday from early afternoon to evening.
+From Fig.1 and Fig.2, it is easy to see that most people ride on weekdays starting roughly around 8 am and 18 pm, and ending just slightly later than the start time. This is in line with the time most people go to work and return from work. Since we assume that the NYC commuters are the majority of the riders, this result is not surprising. It is also worth pointing out that people ride bicycles on Saturday and Sunday from early afternoon to evening.
 
-Now we create the density plots for the start and end locations. A .
+Now we create the density plots for the start and end locations.
 
 ```{r}
 # list of stations with locations which can help their labelling on the map
-stations = citibike %>%
+stations = data %>%
   group_by(id = si) %>%
   summarise(name = namei[1],
             lat = lati[1],
@@ -98,13 +98,21 @@ head(stations)
 ```
 
 ```{r, echo = F}
-# google map with matching range is called by ggmap as the background of the figures
+library(sp)
+library(leaflet)
+df <- data.frame(longitude = runif(10, -97.365268, -97.356546), 
+                 latitude = runif(10, 32.706071, 32.712210))
+coordinates(df) <- ~longitude+latitude
+leaflet(df) %>% addMarkers() %>% addTiles()
+```
+
+```{r, echo = F}
+# get map with matching range as the background of the plot
 limlon = c(-74.02,-73.97)
 limlat = c(40.705,40.745)
-nycmap = get_map(location = c(lon = mean(limlon), lat = mean(limlat)),
-                 zoom = 13, maptype = "hybrid", source = "google")
+
 # 2d density
-tmp = citibike %>% select(lat = lati, lon = loni) %>% sample_n(5000)
+tmp = data %>% select(lat = lati, lon = loni) %>% sample_n(5000)
 fig = ggmap(nycmap, extent = "device") +
   stat_density2d(data = tmp, aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
 	size = 0.01, bins = 16, geom = "polygon") +
