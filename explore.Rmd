@@ -82,7 +82,7 @@ fig = ggplot() +
 print(fig)
 ```
 
-From Fig.1 and Fig.2, it is easy to see that most people ride on weekdays starting roughly around 8 am and 18 pm, and ending just slightly later than the start time. This is in line with the time most people go to work and return from work. Since we assume that the NYC commuters are the majority of the riders, this result is not surprising. It is also worth pointing out that people ride bicycles on Saturday and Sunday from early afternoon to evening.
+From Fig.1 and Fig.2, it is easy to see that most people ride on weekdays starting roughly around 8 am and 18 pm, and ending just slightly later (much less than an hour) than the start time. This is in line with the time most people go to work and return from work. Since we assume that the NYC commuters are the majority of the riders, this result is not surprising. It is also worth pointing out that people ride bicycles on Saturday and Sunday from early afternoon to evening.
 
 Now we create the density plots for the start and end locations.
 
@@ -100,8 +100,10 @@ head(stations)
 ```{r, echo = F}
 library(sp)
 library(leaflet)
-df <- data.frame(longitude = runif(10, -97.365268, -97.356546), 
-                 latitude = runif(10, 32.706071, 32.712210))
+# limlon = c(-74.02,-73.97)
+# limlat = c(40.705,40.745)
+df <- data.frame(longitude = c(-74.02,-73.97),
+                 latitude = c(40.705,40.745))
 coordinates(df) <- ~longitude+latitude
 leaflet(df) %>% addMarkers() %>% addTiles()
 ```
