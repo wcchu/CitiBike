@@ -1,13 +1,13 @@
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(randomForest))
-suppressPackageStartupMessages(library(tfestimators))
 suppressPackageStartupMessages(library(tree))
 suppressPackageStartupMessages(library(pre))
 
-raw <- read.csv("citibike_2014-07.csv", stringsAsFactors = F)
+raw <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
+                 header = T, stringsAsFactors = F)
 
 ## Task: predict the usertype (Subscriber/customer classification) and
-## the trip duration (regression) for a given starting station at a given time.
+## the trip duration (regression) for a given starting location and time.
 
 ## preprocess data
 d <-
@@ -24,14 +24,10 @@ d <-
          usertype,
          trip_dur) %>%
   mutate(usertype = as.factor(usertype))
-## Now this dataset has 5 predictor features: lat, lon, day, and hour.
-## The responses usertype, b_year, and gender will be predicted independently from
-## the 5 features.
+## Now this dataset has 4 predictor features: lat, lon, day, and hour.
+## The responses usertype and trip_dur will be predicted independently from
+## the 4 features.
 feat_names <- c("lat", "lon", "wday", "hour")
-
-## for tensorflow
-feat_cols <- feature_columns(
-  column_numeric("lat", "lon", "wday", "hour"))
 
 ## function to split training and test set
 splitter <- function(d, t = 0.2) {
@@ -58,7 +54,6 @@ sampler <- function(d, m = 10000) {
   s <- sample(x = n, size = m, replace = F)
   d[s, ]
 }
-
 
 ## 1. predict the usertype (classification)
 
@@ -88,42 +83,11 @@ rf <-
 print(rf) ## error rate ~ 32%
 
 
-## (2) tensorflow linear classifier
-
-input <- function(d) {
-  input_fn(usertype_int ~ lat + lon + wday + hour,
-           data = d,
-           batch_size = 100,
-           epochs = 3)
-}
-
-lin_cl <- linear_classifier(feature_columns = feat_cols)
-
-train(lin_cl, input_fn = input(u$train))
-
-lin_cl_eval <- evaluate(lin_cl, input_fn = input(u$test))
-print(lin_cl_eval) ## average loss ~ 69%
-
-
-## (3) tensorflow dnn classifier
-
-dnn_cl <- dnn_classifier(
-  hidden_units = c(5, 5, 5),
-  feature_columns = feat_cols)
-
-train(dnn_cl, input_fn = input(u$train))
-
-dnn_cl_eval <- evaluate(dnn_cl, input_fn = input(u$test))
-print(dnn_cl_eval) ## average loss ~ 69%
-
-
-## (4) pre (rulefit) classifier
-
+## (2) pre (rulefit) classifier
 pre_cl <- pre(usertype ~ lat + lon + wday + hour,
               data = u$train,
               family = "binomial",
               ntrees = 5)
-
 pre_cl_pred <- predict(object = pre_cl,
                        newdata = u$test,
                        type = "class")
@@ -132,6 +96,7 @@ pre_cl_err <-
   mutate(prediction = pre_cl_pred) %>%
   mutate(error = ifelse(usertype == prediction, 0, 1))
 print(mean(pre_cl_err$error)) ## average loss ~ 37%
+
 
 ## 2. predict the trip duration (regression)
 
@@ -164,38 +129,5 @@ lm_rg_pred <- predict(
 lm_rg_loss <- mean(abs(v$test$trip_dur - lm_rg_pred))
 print(lm_rg_loss) ## loss ~ 8
 
-
-## (3) tensorflow linear regression
-
-input <- function(d) {
-  input_fn(trip_dur ~ lat + lon + wday + hour,
-           data = d,
-           batch_size = 100,
-           epochs = 3)
-}
-
-lin_rg <- linear_regressor(feature_columns = feat_cols)
-
-train(lin_rg, input_fn = input(v$train))
-
-lin_rg_eval <- evaluate(lin_rg, input_fn = input(v$test))
-print(lin_rg_eval)
-
-lin_rg_pred <- predict(lin_rg, input_fn = input(v$test))
-lin_rg_loss <- mean(abs(v$test$trip_dur - unlist(lin_rg_pred)))
-print(lin_rg_loss) ## loss ~ 8
-
-## (4) tensorflow dnn regressor
-
-dnn_rg <- dnn_regressor(
-  hidden_units = c(5, 5, 5),
-  feature_columns = feat_cols)
-
-train(dnn_rg, input_fn = input(v$train))
-
-dnn_rg_eval <- evaluate(dnn_rg, input_fn = input(v$test))
-print(dnn_rg_eval)
-
-dnn_rg_pred <- predict(dnn_rg, input_fn = input(v$test))
-dnn_rg_loss <- mean(abs(v$test$trip_dur - unlist(dnn_rg_pred)))
-print(dnn_rg_loss) ## loss ~ 8
+## (3)
+## TODO: multilayer perceptron
