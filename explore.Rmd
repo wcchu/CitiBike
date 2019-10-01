@@ -1,7 +1,7 @@
 ---
-title: 'CitiBike rental system: Exploratory data analysis'
+title: 'CitiBike rental system: data exploration'
 author: "Wei-Chun Chu"
-date: "2019-09-27"
+date: "2019-10-01"
 output: pdf_document
 ---
 
@@ -98,20 +98,14 @@ head(stations)
 ```
 
 ```{r, echo = F}
-library(sp)
-library(leaflet)
-# limlon = c(-74.02,-73.97)
-# limlat = c(40.705,40.745)
-df <- data.frame(longitude = c(-74.02,-73.97),
-                 latitude = c(40.705,40.745))
-coordinates(df) <- ~longitude+latitude
-leaflet(df) %>% addMarkers() %>% addTiles()
-```
-
-```{r, echo = F}
+library(ggmap)
+readRenviron(".env")
+register_google(key = Sys.getenv("API_KEY"))
 # get map with matching range as the background of the plot
 limlon = c(-74.02,-73.97)
 limlat = c(40.705,40.745)
+nycmap = get_map(location = c(lon = mean(limlon), lat = mean(limlat)),
+                 zoom = 13, maptype = "hybrid", source = "google")
 
 # 2d density
 tmp = data %>% select(lat = lati, lon = loni) %>% sample_n(5000)
@@ -127,7 +121,7 @@ print(fig)
 ```
 
 ```{r, echo = F}
-tmp = citibike %>% select(lat = latf, lon = lonf) %>% sample_n(5000)
+tmp = data %>% select(lat = latf, lon = lonf) %>% sample_n(5000)
 fig = ggmap(nycmap, extent = "device") +
   stat_density2d(data = tmp, aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
 	size = 0.01, bins = 16, geom = "polygon") +
@@ -139,29 +133,27 @@ fig = ggmap(nycmap, extent = "device") +
 print(fig)
 ```
 
-Fig.3 and Fig.4 have almost indistinguishable patterns. It means that the overall start locations balanced the overall end locations quite well and there should have been minimal need to ship the bikes between stations by trucks. However we want to figure out from the data exactly whether bikes were shipped around, and if they were, when and where. We will talk about this in the next section.
-
-Now going back to Fig.3 and Fig.4, we notice that despite the even spread of stations, their popularity was highly concentrated in just a few districts. For example the cross section at Park Avenue and 14th St was extremely popular. A question naturally arising from here is: were the locations of these stations optimized for the most popular biking areas? We especially question the usefulness of the stations in Brooklyn, in the southeast corner of the map. The station locations are important when we want to 1. improve the user experience by splitting overcrowded stations and diverting traffic, and to 2. remove useless stations to bring down the cost. We will continue with more details in Part 3 of this project.
+Fig.3 and Fig.4 have almost indistinguishable patterns. It means that the overall start locations balance the overall end locations very well and there should be minimal need to ship the bikes between stations. We notice that despite the even spread of stations, the popularity is highly concentrated in just a few districts. For example the cross section at Park Avenue and 14th St is extremely popular. A question naturally arising from here is: are the locations of these stations optimized for the most popular biking areas? We especially question the usefulness of the stations in Brooklyn, in the southeast corner of the map. The station locations are important when we want to 1. improve the user experience by splitting overcrowded stations and diverting traffic, and to 2. remove useless stations to bring down the cost.
 
 # 3. Manual relocation of bikes
 
-As mentioned earlier, when borrowing and returning bikes in certain stations were not in equilibrium, the company should have shipped the bikes in bulks from fully parked stations to empty stations. We can trace this by looking at the bike ids: without such manual relocation, a bike's borrow location in a ride must have coincided with its return location in the previous ride.
+As mentioned earlier, when borrowing and returning bikes in certain stations are not in equilibrium, the company might have to ship the bikes in bulks from fully parked stations to empty stations. We can trace this by looking at the bike ids: without such manual relocation, a bike's borrow location in a ride must have coincided with its return location in the previous ride.
 
 First of all we create a table to record the riding info for each bike:
 
 ```{r}
-rides = data.frame(bike = citibike$bike,
-                   ti = as.integer(as.POSIXct(citibike$ti)),
-                   date = as.integer(strftime(citibike$ti, format = "%d")),
-                   wday = as.integer(strftime(citibike$ti, format = "%u")),
-                   dur = citibike$dur / 60, # in minutes
-                   si = citibike$si, 
-                   sf = citibike$sf) %>%
+rides = data.frame(bike = data$bike,
+                   ti = as.integer(as.POSIXct(data$ti)),
+                   date = as.integer(strftime(data$ti, format = "%d")),
+                   wday = as.integer(strftime(data$ti, format = "%u")),
+                   dur = data$dur / 60, # in minutes
+                   si = data$si, 
+                   sf = data$sf) %>%
   arrange(bike, ti)
 head(rides)
 ```
 
-From this table it is clear that most of the time, a bike was returned to a certain station before it was borrowed from the same station. But there were exceptions, e.g. between the 1st and 2nd rides in the above table, the bike was shipped from station #536 to #434. We pick out these "disontinuities" and count how often this happened.
+From this table it is clear that most of the time, a bike is returned to a certain station before it is borrowed from the same station. But there are exceptions, e.g. between the 1st and 2nd rides in the above table, the bike was shipped from station #536 to #434. We pick out these "disontinuities" and count how often this happened.
 
 ```{r}
 reloc = rides %>%
@@ -173,19 +165,19 @@ head(reloc)
 sum(reloc$nreloc) / sum(reloc$nrides)
 ```
 
-In average, a bike were shipped 12 times for every 100 rides. Such manual relocations costed the company extra money and were only necessary if certain stations had insufficient bikes or insufficient parking places. We will find in Part 3 where and when this problem occurred.
+In average, a bike is shipped 12 times for every 100 rides. Such manual relocations cost the company extra money and are only necessary if certain stations have insufficient bikes or insufficient parking places.
 
 # 4. Usage of bikes
 
-When a bunch of bikes were shipped from one station to another, it suggested that these bikes were idle at the first station for some time where nobody cared about. In think about such "waste" of bikes, it is interesting to know how many "working hours" each bike had per day, and whether the usage changed along a week. The average working time per bike per day is simply the total time of rides divided by the number of bikes and 31 days in July.
+When a bunch of bikes are shipped from one station to another, it suggested that these bikes are idle at the first station for some time. For such a "waste" of bikes, it is interesting to know how many "working hours" each bike has per day, and whether the usage changes along a week. The average working time per bike per day is simply the total riding time divided by the number of bikes and 31 days in July.
 
 ```{r}
 sum(rides$dur) / n_bikes / 31 # average time per bike per day in minutes
 ```
 
-The answer is 72 minutes. We have assumed that the number of bikes in the system in July 2014 was the number of bikes ever being riden in the same month. In other words, two possiblities are ignored: 1. there were bikes never used over the whole month, and 2. there were bikes that joined the fleet or retired from the fleet in the middle of the month. We assume that they were rare enough to be ignored.
+The answer is 72 minutes. We have assumed that the bikes are the same during the whole time.
 
-Now we look deeper into the daily statistics of how people used the bikes. In the following we create a table for the statistics of each of the 31 days.
+Now we look deeper into the daily statistics of how people use the bikes. In the following we create a table for the statistics of each of the 31 days.
 
 ```{r}
 usage_month = rides %>%
@@ -198,7 +190,7 @@ usage_month = rides %>%
 head(usage_month, 10)
 ```
 
-Note that in this table, dur_tot was the total working time per bike on that day, which was averaged over all bikes in the system instead of all bikes on the road in that day, since we want to take into account those idle bikes by assigning 0 working time on them. It seems that people used the system quite differently on weekdays and on weekends. To more clearly see the trend, we further accumulate the statistics for a typical week:
+Note that in this table, dur_tot is the total working time per bike on that day, which is averaged over all bikes in the system instead of all bikes on the road on that day, since we want to take into account those idle bikes with 0 working time on them. It seems that people use the system quite differently on weekdays and during the weekends. To more clearly see the trend, we further accumulate the statistics for a typical week:
 
 ```{r}
 usage_week = usage_month %>%
@@ -210,13 +202,13 @@ usage_week = usage_month %>%
 show(usage_week)
 ```
 
-While the average daily use of each bike was not too different between weekdays and weekends, there were more bikes borrowed and more daily rides, but shorter trip each ride on weekdays. It seems reasonable that a lot of people rode for short trips to commute on weekdays, and a relatively smaller amount of people rode on weekends leisurely. To judge the behavior on different days in a week, the sample size (number of observations) is large enough only for the ride durations because each observation is each ride, but is not large enough for number of rides per day or number of bikes borrowed per day because each observation is on each date, and we have only 31 days totally. The t-tests can be done, for example, on the number of rides on Sundays versus on Mondays,
+While the average daily use of each bike is not too different between weekdays and weekends, there are more bikes borrowed and more daily rides, but shorter trip each ride on weekdays. It seems reasonable that a lot of people ride for short trips to commute on weekdays, and a relatively smaller amount of people ride during the weekends leisurely. To judge the behavior on different days in a week, the sample size (number of observations) is large enough only for the ride durations because each observation is each ride, but is not large enough for number of rides per day or number of bikes borrowed per day because each observation is on each day, and we have only 31 days totally. The t-tests can be done, for example, on the number of rides on Sundays versus on Mondays,
 
 ```{r}
 t.test(usage_month$nrides[usage_month$day == 7], usage_month$nrides[usage_month$day == 1])
 ```
 
-and the result does not reject the hypothesis that weekdays and weekends were the same. It is not enough to say that Sundays had less rides than Mondays. We can include more months to test this if needed. On the other hand, the t-test on the ride durations on Sundays versus on Mondays can be done by
+and the result does not reject the hypothesis that weekdays and weekends are the same. It is not enough to say that Sundays have less rides than Mondays. We can include more months to test this if needed. On the other hand, the t-test on the ride durations on Sundays versus on Mondays can be done by
 
 ```{r}
 t.test(rides$dur[rides$wday == 7], rides$dur[rides$wday == 1])
@@ -224,8 +216,8 @@ t.test(rides$dur[rides$wday == 7], rides$dur[rides$wday == 1])
 
 with the clear conclusion that the durations on Sundays were longer.
 
-A meaningful relevant question is whether there were "cursed" stations where once a bike was parked there, it spent much longer time before being borrowed again. If there were such cases, what were these stations, and how to remove the curse? To answer this we could trace each bike, list its idle time (time between two consecutive rides) with corresponding stations, and average the idle time for each bike for each station. I think this question is very interesting and can be in an extended study, but it is not as urgent as the main issues we focus on in this project.
+A meaningful relevant question is whether there are "cursed" stations where once a bike is parked there, it spend much longer time before being borrowed again. If there are such cases, where are these stations, and how to remove the curse? To answer this we could trace each bike, list its idle time (time between two consecutive rides) with corresponding stations, and average the idle time for each bike for each station. I think this question is very interesting and can be included in an extended study, but it is not as urgent as the main issues we focus on in this project.
 
-# 5. Summary of Part 1
+# 5. Summary
 
-Section 2 shows that the popular stations concentrated sharply in certain areas in NYC and in certain times in a week. Because of this we suspect the station locations could be arranged better to reduce waste and to improve user experiences. In Section 3 we extract the occurances of manual relocation of bikes, and find a bike was shipped 12 times in every 100 times it served. Section 4 shows that a bike worked roughly 1.2 hours per day, and the average ride durations on weekends were definitely longer than those on weekdays.
+Section 2 shows that the popular stations concentrated sharply in certain areas in NYC and in certain times in a week. Because of this we suspect the station locations could be arranged better to reduce waste and to improve user experiences. In Section 3 we extract the occurances of manual relocation of bikes, and find a bike is shipped 12 times in every 100 times it served. Section 4 shows that a bike works roughly 1.2 hours per day, and the average ride durations on weekends are definitely longer than those on weekdays.
