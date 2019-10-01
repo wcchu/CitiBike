@@ -10,9 +10,9 @@ We explore the basic properties of the data and draw some basic facts in `explor
 
 In the shiny app, we filter the data by the starting time/weekday and the customer type (subscriber or not) and plot the starting time histogram and the start/end location map, with the tabs "Time" and "Location" respectively. We can then brush the time histogram or map to extract data into a viewable table and download it to a csv file. Run `R -e "shiny::runApp('shiny_app')"` to start the app locally. The app has also been deployed through shinyapps.io at https://wcchu.shinyapps.io/shiny_app/.
 
-## Predict the user type
+## Modeling
 
-In "Part 2: Predict the user and the trip", we ask the question whether a station can predict (1) if a user is a subscriber (with a annual pass) or not (with a daily or weekly pass) and (2) the duration and end location of the trip, given the location and time of the renting. We build random forest and RuleFit classifiers for (1) and random forest, rulefit, and tensorflow regressors for (2). Such predictions could help Citi to prepare for the trip, to promote events, and to expand the customer base.
+For a trip with given starting location and time, we want to predict (1) the user type of the renter--is it a "subscriber" (with a annual pass) or a "customer" (with a daily or weekly pass), (2) the duration of the ride. For (1), we build random forest and RuleFit classifiers, and for (2), we use neural networks. Such questions are important because they could help prepare for the trip, promote events, and/or plan infrastructure updates.
 
 ## Availability
 
