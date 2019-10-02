@@ -2,3 +2,5 @@
 .RData
 rsconnect/
 .env
+*.net
+*.pat
