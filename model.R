@@ -2,6 +2,7 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tree))
 suppressPackageStartupMessages(library(pre))
+suppressPackageStartupMessages(library(RSNNS))
 
 raw <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
                  header = T, stringsAsFactors = F)
@@ -100,6 +101,8 @@ print(mean(pre_cl_err$error)) ## average loss ~ 37%
 
 ## 2. predict the trip duration (regression)
 
+# TODO: scaler
+
 v <- d %>% sampler(m = 100000) %>% splitter(t = 0.2)
 
 ## (1) tree regression
@@ -131,3 +134,20 @@ print(lm_rg_loss) ## loss ~ 8
 
 ## (3)
 ## TODO: multilayer perceptron
+
+mlp_rg <- mlp(x = as.matrix(v$train[feat_names],
+                            rownames.force = FALSE),
+              y = v$train$trip_dur,
+              linOut = TRUE)
+
+# summary(mlp_rg)
+# weightMatrix(mlp_rg)
+# extractNetInfo(mlp_rg)
+# par(mfrow=c(2,2))
+# plotIterativeError(mlp_rg)
+
+mlp_rg_pred <- predict(mlp_rg,
+                       as.matrix(v$test[feat_names],
+                                 rownames.force = FALSE))
+
+# TODO: neuralnet
