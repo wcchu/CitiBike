@@ -2,7 +2,7 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tree))
 suppressPackageStartupMessages(library(pre))
-suppressPackageStartupMessages(library(RSNNS))
+suppressPackageStartupMessages(library(neuralnet))
 
 raw <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
                  header = T, stringsAsFactors = F)
@@ -101,53 +101,65 @@ print(mean(pre_cl_err$error)) ## average loss ~ 37%
 
 ## 2. predict the trip duration (regression)
 
-# TODO: scaler
+# scale tar based on the mean and scale of ref
+mean_sd_scale <- function(ref, tar) {
+  centers <- apply(ref, 2, mean)
+  scales <- apply(ref, 2, sd)
+  scale(tar, center = centers, scale = scales)
+}
 
 v <- d %>% sampler(m = 100000) %>% splitter(t = 0.2)
+
+# take train dataset feature cols before scaling as scaler ref
+ref_feat <- v$train[feat_names]
+# scale train and test
+train <-
+  cbind(
+    mean_sd_scale(ref = ref_feat, tar = ref_feat),
+    v$train['trip_dur']
+  )
+test <-
+  cbind(
+    mean_sd_scale(ref = ref_feat, tar = v$test[feat_names]),
+    v$test['trip_dur']
+  )
 
 ## (1) tree regression
 
 tree_rg <- tree(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = v$train)
+  data = train)
 
 tree_rg_pred <- predict(
   object = tree_rg,
-  newdata = v$test,
+  newdata = test,
   type = "vector")
 
-tree_rg_loss <- mean(abs(v$test$trip_dur - tree_rg_pred))
+tree_rg_loss <- mean(abs(test$trip_dur - tree_rg_pred))
 print(tree_rg_loss) ## loss ~ 8
 
 ## (2) linear regression
 
 lm_rg <- lm(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = v$train)
+  data = train)
 
 lm_rg_pred <- predict(
   object = lm_rg,
-  newdata = v$test)
+  newdata = test)
 
-lm_rg_loss <- mean(abs(v$test$trip_dur - lm_rg_pred))
+lm_rg_loss <- mean(abs(test$trip_dur - lm_rg_pred))
 print(lm_rg_loss) ## loss ~ 8
 
-## (3)
-## TODO: multilayer perceptron
+## (3) neuralnet
 
-mlp_rg <- mlp(x = as.matrix(v$train[feat_names],
-                            rownames.force = FALSE),
-              y = v$train$trip_dur,
-              linOut = TRUE)
+nn_rg <- neuralnet(
+  formula = trip_dur ~ lat + lon + wday + hour,
+  data = train
+)
+plot(nn_rg, rep = 'best')
 
-# summary(mlp_rg)
-# weightMatrix(mlp_rg)
-# extractNetInfo(mlp_rg)
-# par(mfrow=c(2,2))
-# plotIterativeError(mlp_rg)
+nn_rg_pred <- predict(nn_rg, newdata = test[feat_names])
 
-mlp_rg_pred <- predict(mlp_rg,
-                       as.matrix(v$test[feat_names],
-                                 rownames.force = FALSE))
-
-# TODO: neuralnet
+nn_rg_loss <- mean(abs(test$trip_dur - nn_rg_pred))
+print(nn_rg_loss)
