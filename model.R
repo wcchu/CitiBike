@@ -155,7 +155,8 @@ print(lm_rg_loss) ## loss ~ 8
 
 nn_rg <- neuralnet(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = train
+  data = train,
+  hidden = c(5, 3)
 )
 plot(nn_rg, rep = 'best')
 
