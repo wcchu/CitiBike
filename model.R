@@ -153,10 +153,14 @@ print(lm_rg_loss) ## loss ~ 8
 
 ## (3) neuralnet
 
+# reduce data size to shorten computation time
+train_5000 <- sample_n(train, size = 5000, replace = FALSE)
+
 nn_rg <- neuralnet(
   formula = trip_dur ~ lat + lon + wday + hour,
-  data = train,
-  hidden = c(3, 2)
+  data = train_5000,
+  hidden = 3,
+  stepmax = 1e7
 )
 plot(nn_rg, rep = 'best')
 
