@@ -168,3 +168,5 @@ nn_rg_pred <- predict(nn_rg, newdata = test[feat_names])
 
 nn_rg_loss <- mean(abs(test$trip_dur - nn_rg_pred))
 print(nn_rg_loss)
+
+# TODO: more discussion and experimentation on neural network
