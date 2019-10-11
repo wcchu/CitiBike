@@ -3,6 +3,7 @@ suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tree))
 suppressPackageStartupMessages(library(pre))
 suppressPackageStartupMessages(library(neuralnet))
+suppressPackageStartupMessages(library(FNN))
 
 raw <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
                  header = T, stringsAsFactors = F)
@@ -170,3 +171,14 @@ nn_rg_loss <- mean(abs(test$trip_dur - nn_rg_pred))
 print(nn_rg_loss)
 
 # TODO: more discussion and experimentation on neural network
+
+## (4) knn
+
+knn_rg <- knn.reg(train = train[feat_names],
+                  test = test[feat_names],
+                  y = train$trip_dur,
+                  k = 100)
+knn_rg_pred <- knn_rg$pred
+
+knn_rg_loss <- mean(abs(test$trip_dur - knn_rg_pred))
+print(knn_rg_loss)
