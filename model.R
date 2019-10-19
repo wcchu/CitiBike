@@ -3,6 +3,7 @@ suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(tree))
 suppressPackageStartupMessages(library(pre))
 suppressPackageStartupMessages(library(neuralnet))
+suppressPackageStartupMessages(library(FNN))
 
 raw <- read.csv(unz("citibike_2014-07.csv.zip", "citibike_2014-07.csv"),
                  header = T, stringsAsFactors = F)
@@ -136,7 +137,7 @@ tree_rg_pred <- predict(
   type = "vector")
 
 tree_rg_loss <- mean(abs(test$trip_dur - tree_rg_pred))
-print(tree_rg_loss) ## loss ~ 8
+print(tree_rg_loss) ## loss = 8.179477
 
 ## (2) linear regression
 
@@ -149,7 +150,7 @@ lm_rg_pred <- predict(
   newdata = test)
 
 lm_rg_loss <- mean(abs(test$trip_dur - lm_rg_pred))
-print(lm_rg_loss) ## loss ~ 8
+print(lm_rg_loss) ## loss = 8.142879
 
 ## (3) neuralnet
 
@@ -167,6 +168,15 @@ plot(nn_rg, rep = 'best')
 nn_rg_pred <- predict(nn_rg, newdata = test[feat_names])
 
 nn_rg_loss <- mean(abs(test$trip_dur - nn_rg_pred))
-print(nn_rg_loss)
+print(nn_rg_loss) # loss = 7.931619
 
-# TODO: more discussion and experimentation on neural network
+## (4) knn
+
+knn_rg <- knn.reg(train = train[feat_names],
+                  test = test[feat_names],
+                  y = train$trip_dur,
+                  k = 100)
+knn_rg_pred <- knn_rg$pred
+
+knn_rg_loss <- mean(abs(test$trip_dur - knn_rg_pred))
+print(knn_rg_loss) # loss = 7.760618
