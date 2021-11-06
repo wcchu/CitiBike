@@ -4,7 +4,7 @@ We study how riders used the CitiBike bike rental system in New York City in Jul
 
 ## Data Exploration
 
-We explore the basic properties of the data and draw some basic facts in `explore.Rmd` (rendered to `explore.pdf`). The data is visualized and summarized with basic time and location information. This analysis provides an intuitive understanding of the details in the prediction model later. Possible extension of this work is also discussed.
+We explore the basic properties of the data and draw some basic facts in `explore/report/explore.Rmd` (rendered to `explore/report/explore.pdf`). The data is visualized and summarized with basic time and location information. This analysis provides an intuitive understanding of the details in the prediction model later. Possible extension of this work is also discussed.
 
 ## Shiny app
 

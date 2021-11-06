@@ -3,7 +3,7 @@ suppressPackageStartupMessages(library(tidyverse))
 
 ## static data
 dat <-
-  read.csv("data.csv", header = T, stringsAsFactors = F) %>%
+  read.csv("../../data.csv", header = T, stringsAsFactors = F) %>%
   # convert time to week day and hour
   mutate(time = as.POSIXct(starttime, tz = "EST"),
          dur = tripduration/60) %>%
