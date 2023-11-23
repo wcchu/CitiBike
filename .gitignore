@@ -4,3 +4,4 @@ rsconnect/
 .env
 *.net
 *.pat
+.ipynb_checkpoints/
